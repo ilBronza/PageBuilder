@@ -1,0 +1,10 @@
+{
+  "background":["default","muted","primary","secondary"],
+  "padding":["none","small","default","large"],
+  "margin":["none","small","default","medium","large"],
+  "align":["left","center","right"],
+  "color":["default","muted","primary","secondary"],
+  "gap":["collapse","small","medium","default","large"],
+  "rowGap":["collapse","small","medium","default","large"],
+  "vertical":["top","middle","bottom"]
+}

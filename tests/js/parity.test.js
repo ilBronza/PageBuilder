@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {render} from '../../resources/js/render.js';
+const catalog=JSON.parse(await readFile(new URL('../../resources/schema/catalog.json',import.meta.url)));
+const styles=JSON.parse(await readFile(new URL('../../resources/schema/styles.json',import.meta.url)));
+const fixtures=JSON.parse(await readFile(new URL('../fixtures/parity.json',import.meta.url)));
+const php=JSON.parse(execFileSync(process.env.PHP_BINARY??'php',['tests/render-fixtures.php'],{encoding:'utf8'}));
+for(const f of fixtures)test(`PHP / JS parity: ${f.name}`,()=>{assert.equal(php[f.name].valid,f.valid);if(f.valid)assert.equal(render(f.document,catalog,styles,{mode:f.mode,values:f.values,areas:f.areas}),php[f.name].html);else assert.throws(()=>render(f.document,catalog,styles,{mode:f.mode}));});

@@ -1,0 +1,12 @@
+{
+  "section": {"label":"Sezione","icon":"▤","props":{"width":{"kind":"enum","values":["small","default","large","expand"],"default":"default"}},"styles":["background","padding","margin","align"],"children":["row"]},
+  "row": {"label":"Riga","icon":"▥","props":{"layout":{"kind":"layout","default":["1-1"]}},"styles":["gap","rowGap","vertical","margin"],"children":["column"]},
+  "column": {"label":"Colonna","icon":"▯","props":{},"styles":["background","padding","align","vertical"],"children":["heading","text","image","button","divider","list","area"]},
+  "heading": {"label":"Titolo","icon":"H","props":{"text":{"kind":"string","default":"Un nuovo titolo","binding":"text"},"tag":{"kind":"enum","values":["h1","h2","h3","h4","h5","h6"],"default":"h2"},"size":{"kind":"enum","values":["default","small","medium","large","xlarge","2xlarge"],"default":"medium"}},"styles":["align","color","margin","padding"]},
+  "text": {"label":"Testo","icon":"¶","props":{"text":{"kind":"string","default":"Racconta qualcosa di interessante.","binding":"text"}},"styles":["align","color","margin","padding"]},
+  "image": {"label":"Immagine","icon":"▧","props":{"src":{"kind":"url","default":"","binding":"image"},"alt":{"kind":"string","default":"","binding":"text"},"ratio":{"kind":"enum","values":["auto","square","landscape","portrait"],"default":"auto"}},"styles":["margin","padding"]},
+  "button": {"label":"Pulsante","icon":"↗","props":{"text":{"kind":"string","default":"Scopri di più","binding":"text"},"href":{"kind":"url","default":"#","binding":"url"},"variant":{"kind":"enum","values":["default","primary","secondary","text"],"default":"primary"}},"styles":["align","margin","padding"]},
+  "divider": {"label":"Separatore","icon":"—","props":{"variant":{"kind":"enum","values":["default","small","icon"],"default":"default"}},"styles":["margin","padding"]},
+  "list": {"label":"Elenco","icon":"☷","props":{"items":{"kind":"list","default":["Primo dettaglio","Secondo dettaglio"],"binding":"list"},"variant":{"kind":"enum","values":["bullet","decimal","divider","striped"],"default":"bullet"}},"styles":["align","color","margin","padding"]},
+  "area": {"label":"Area libera","icon":"⊞","templateOnly":true,"props":{"area":{"kind":"identifier","default":"description"}},"styles":["margin","padding"]}
+}

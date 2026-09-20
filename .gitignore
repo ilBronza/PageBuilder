@@ -1,0 +1,7 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/tests/runtime/
+/playground/.data/
+/prompt-pagebuilder-laravel.md
+.DS_Store
