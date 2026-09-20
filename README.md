@@ -31,7 +31,13 @@ I test coprono integrità, storia, griglie, duplicazione, errori HTTP, parità P
 
 ## Installazione Laravel
 
-Il nome Composer è `ilbronza/pagebuilder`, namespace `IlBronza\PageBuilder`. La cartella mantiene il nome `pageBuilder`. Per lo sviluppo aggiungi un repository Composer `path` nell’app ospitante, con URL della cartella, quindi richiedi il package tramite Composer nel tuo normale flusso. Il repository non è stato pubblicato su Packagist.
+Il nome Composer è `ilbronza/pagebuilder`, namespace `IlBronza\PageBuilder`. Il package è disponibile su Packagist:
+
+```sh
+composer require ilbronza/pagebuilder
+```
+
+Per lo sviluppo locale puoi usare invece un repository Composer `path` nell’app ospitante, con URL della cartella.
 
 ```json
 {"repositories":[{"type":"path","url":"../pageBuilder","options":{"symlink":true}}]}
