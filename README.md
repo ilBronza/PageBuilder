@@ -15,7 +15,7 @@ Il selettore offre pagina statica, template condiviso e area libera. I record di
 
 ## Compatibilità e test
 
-Verificato su **PHP 8.4.22, Laravel 11.51.0, PHPUnit 11.5.55, Testbench 9, SQLite in memoria, Node 20.19.5**. `composer.json` richiede PHP ^8.2 e Illuminate ^11. Non dichiara Laravel 12/13: vari progetti locali li usano, ma richiedono una suite con Testbench corrispondente prima di ampliare la compatibilità. Nessuna verifica su MySQL/PostgreSQL o PHP 8.2/8.3 in questa consegna.
+Verificato su **PHP 8.4.22, Laravel 11.51.0, PHPUnit 11.5.55, Testbench 9, SQLite in memoria, Node 20.19.5**. `composer.json` richiede PHP ^8.2; le dipendenze Illuminate sono fornite dall’app Laravel ospitante. La suite è stata verificata con Laravel 11. Nessuna verifica su MySQL/PostgreSQL o PHP 8.2/8.3 in questa consegna.
 
 ```sh
 npm test
