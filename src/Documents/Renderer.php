@@ -10,23 +10,28 @@ class Renderer
     public function render(array $document, array $values = [], ?callable $area = null, string $mode = 'static'): string
     {
         $this->validator->validate($document, $mode);
-        $nodes = fn ($children) => implode('', array_map(fn ($n) => $this->node($n, $values, $area), $children));
+        $nodes = fn ($children) => implode('', array_map(fn ($n) => $this->node($n, $values, $area, $mode), $children));
         return '<div class="pb-document">'.$nodes($document['children']).'</div>';
     }
 
-    private function node(array $node, array $values, ?callable $area): string
+    private function node(array $node, array $values, ?callable $area, string $mode): string
     {
         $type = $node['type'];
         $def = $this->registry->elements[$type];
         $p = array_map(fn ($spec) => $spec['default'], $def['props']);
         $p = array_replace($p, $node['props']);
+        if ($mode === 'template') foreach ($def['props'] as $key => $spec) {
+            if (isset($node['bindings'][$key])) continue;
+            if (($spec['binding'] ?? '') === 'text') $p[$key] = InlineVariables::resolve($p[$key], $values);
+            if ($spec['kind'] === 'list') $p[$key] = array_map(fn ($item) => InlineVariables::resolve($item, $values), $p[$key]);
+        }
         foreach ($node['bindings'] as $key => $source) {
             $value = $values[$source] ?? null;
             $p[$key] = $def['props'][$key]['kind'] === 'list'
                 ? (is_array($value) ? array_values(array_filter($value, 'is_scalar')) : [])
                 : (is_scalar($value) ? self::scalar($value) : '');
         }
-        $children = fn () => implode('', array_map(fn ($child) => $this->node($child, $values, $area), $node['children'] ?? []));
+        $children = fn () => implode('', array_map(fn ($child) => $this->node($child, $values, $area, $mode), $node['children'] ?? []));
         $classes = ['pb-node', 'pb-'.$type];
         foreach ($node['styles'] as $key => $value) {
             $classes[] = match ($key) {
@@ -46,7 +51,7 @@ class Renderer
         $attr = ' class="'.self::escape(implode(' ', $classes)).'" data-pb-id="'.self::escape($node['id']).'"';
         return match ($type) {
             'section' => '<section'.$attr.'><div class="uk-container'.($p['width'] === 'default' ? '' : ' uk-container-'.$p['width']).'">'.$children().'</div></section>',
-            'row' => '<div'.$attr.'>'.implode('', array_map(fn ($child, $width) => '<div class="uk-width-1-1 uk-width-'.$width.'@s">'.$this->node($child, $values, $area).'</div>', $node['children'], $p['layout'])).'</div>',
+            'row' => '<div'.$attr.'>'.implode('', array_map(fn ($child, $width) => '<div class="uk-width-1-1 uk-width-'.$width.'@s">'.$this->node($child, $values, $area, $mode).'</div>', $node['children'], $p['layout'])).'</div>',
             'column' => '<div'.$attr.'>'.$children().'</div>',
             'heading' => '<div'.$attr.'><'.$p['tag'].($p['size'] === 'default' ? '' : ' class="uk-heading-'.$p['size'].'"').'>'.self::escape($p['text']).'</'.$p['tag'].'></div>',
             'text' => '<div'.$attr.'><p class="pb-text">'.self::escape($p['text']).'</p></div>',

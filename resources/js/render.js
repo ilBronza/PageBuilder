@@ -1,4 +1,4 @@
-import {safeUrl, validate} from './core.js';
+import {safeUrl, validate, interpolate} from './core.js';
 export const escape = value => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const scalar = value => ['string','number','boolean'].includes(typeof value);
 export function render(document, catalog, styles, {values = {}, areas = {}, mode = 'static', custom = {}} = {}) {
@@ -6,6 +6,11 @@ export function render(document, catalog, styles, {values = {}, areas = {}, mode
   function node(n) {
     const type = n.type, def = catalog[type];
     const p = {...Object.fromEntries(Object.entries(def.props).map(([k,s]) => [k,s.default])),...n.props};
+    if (mode === 'template') for (const [key,spec] of Object.entries(def.props)) {
+      if (Object.hasOwn(n.bindings,key)) continue;
+      if (spec.binding === 'text') p[key] = interpolate(p[key],values);
+      if (spec.kind === 'list') p[key] = p[key].map(item => interpolate(item,values));
+    }
     for (const [key,source] of Object.entries(n.bindings)) {
       const value = Object.hasOwn(values, source) ? values[source] : null;
       p[key] = def.props[key].kind === 'list' ? (Array.isArray(value) ? value.filter(scalar) : []) : (scalar(value) ? String(value) : '');

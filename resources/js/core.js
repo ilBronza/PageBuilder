@@ -13,6 +13,18 @@ export function compatible(binding, source) {
   if (binding === 'list') return source.cardinality === 'many' && scalarTypes.includes(source.type);
   return source.cardinality === 'one' && (binding === 'text' ? scalarTypes.includes(source.type) : source.type === binding);
 }
+export function validateInline(text, sources = null) {
+  for (const match of text.matchAll(/\{\{(.*?)\}\}/gs)) {
+    const id = match[1].trim();
+    assert(/^[a-zA-Z0-9_.:-]{1,120}$/.test(id) && (!sources || (Object.hasOwn(sources,id) && compatible('text',sources[id]))), `Variabile non disponibile o incompatibile: ${id}`);
+  }
+}
+export function interpolate(text, values) {
+  return text.replace(/\{\{(.*?)\}\}/gs, (_, token) => {
+    const id = token.trim(), value = Object.hasOwn(values,id) ? values[id] : null;
+    return ['string','number','boolean'].includes(typeof value) ? String(value) : '';
+  });
+}
 export function validate(document, catalog, styles, {mode = 'static', kind = null, sources = null, areas = null} = {}) {
   assert(['static','template','area'].includes(mode), 'Modalità non valida');
   keys(document, ['version','kind','children']);
@@ -40,6 +52,10 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
           : spec.kind === 'url' ? typeof value === 'string' && bytes(value) <= 2048 && safeUrl(value) === value
           : spec.kind === 'string' && typeof value === 'string' && bytes(value) <= 20000;
         assert(valid, `Valore non valido: ${key}`);
+        if (mode === 'template' && !Object.hasOwn(n.bindings,key)) {
+          if (spec.binding === 'text') validateInline(value,sources);
+          if (spec.kind === 'list') value.forEach(item => validateInline(item,sources));
+        }
       }
       for (const [key, value] of Object.entries(n.styles)) assert(styles[key]?.includes(value), 'Stile non valido');
       for (const [key, source] of Object.entries(n.bindings)) {

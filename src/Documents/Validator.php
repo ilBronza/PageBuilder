@@ -35,7 +35,14 @@ class Validator
                     $this->check(isset($node[$key]) && is_array($node[$key]), 'Missing '.$key);
                 }
                 $this->keys($node['props'], array_keys($def['props']));
-                foreach ($node['props'] as $key => $value) $this->property($value, $def['props'][$key]);
+                foreach ($node['props'] as $key => $value) {
+                    $spec = $def['props'][$key];
+                    $this->property($value, $spec);
+                    if ($mode === 'template' && !isset($node['bindings'][$key])) {
+                        if (($spec['binding'] ?? '') === 'text') InlineVariables::validate($value, $sources);
+                        if ($spec['kind'] === 'list') foreach ($value as $item) InlineVariables::validate($item, $sources);
+                    }
+                }
                 $this->keys($node['styles'], $def['styles']);
                 foreach ($node['styles'] as $key => $value) {
                     $this->check(in_array($value, $this->registry->styles[$key] ?? [], true), 'Invalid style token');

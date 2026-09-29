@@ -55,6 +55,7 @@ export async function mountEditor(root, options) {
         else if (spec.kind==='list' || (key==='text' && n.type==='text')) content += `<textarea data-prop="${key}" rows="5">${e(Array.isArray(value)?value.join('\n'):value)}</textarea>`;
         else content += `<input data-prop="${key}" value="${e(value)}" type="text">`;
         content += '</label>';
+        if (mode==='template' && !binding && (spec.binding==='text' || spec.kind==='list')) content += `<label class="pb-field"><span>Inserisci variabile nel testo</span><select data-variable="${key}" aria-label="Inserisci variabile in ${e(labels[key]??key)}"><option value="">Scegli una variabile…</option>${Object.values(options.sources??{}).filter(s=>compatible('text',s)).map(s=>`<option value="${e(s.id)}">${e(s.label)}</option>`).join('')}</select></label>`;
         if (key==='src' && !binding && options.pickImage) content += button('image','Scegli immagine','Scegli dalla libreria');
       }
       if (n.type==='section') content += button(`addrow:${n.id}`,'Aggiungi riga','+ Aggiungi riga','class="pb-wide"');
@@ -154,7 +155,15 @@ export async function mountEditor(root, options) {
     const t=event.target;
     try {
       error=''; t.setCustomValidity?.('');
-      if(t.dataset.prop){const spec=catalog[locate(engine.document,selected).node.type].props[t.dataset.prop];engine.update(selected,'props',t.dataset.prop,spec.kind==='list'?t.value.split('\n'):t.value);}
+      if (t.dataset.variable && t.value) {
+        const input=q(`[data-prop="${t.dataset.variable}"]`), token=`{{ ${t.value} }}`;
+        const start=input.selectionStart??input.value.length, end=input.selectionEnd??start;
+        input.value=input.value.slice(0,start)+token+input.value.slice(end);
+        const spec=catalog[locate(engine.document,selected).node.type].props[t.dataset.variable];
+        engine.update(selected,'props',t.dataset.variable,spec.kind==='list'?input.value.split('\n'):input.value);
+        input.setCustomValidity(''); t.value=''; input.focus(); input.setSelectionRange(start+token.length,start+token.length);
+      }
+      else if(t.dataset.prop){const spec=catalog[locate(engine.document,selected).node.type].props[t.dataset.prop];engine.update(selected,'props',t.dataset.prop,spec.kind==='list'?t.value.split('\n'):t.value);}
       else if(t.dataset.style)engine.update(selected,'styles',t.dataset.style,t.value||undefined);
       else if(t.dataset.binding){engine.update(selected,'bindings',t.dataset.binding,t.value||undefined);inspector();}
       else if(t.hasAttribute('data-destination')&&t.value){const target=t.value==='root'?null:t.value;engine.move(selected,target,500);inspector();}
