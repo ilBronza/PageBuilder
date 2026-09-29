@@ -19,8 +19,8 @@ export async function mountEditor(root, options) {
   const q = selector => root.querySelector(selector);
   const frame = q('iframe');
   const status = () => {
-    q('.pb-status').textContent = loading ? 'Caricamento…' : saving ? 'Salvataggio…' : engine?.dirty ? '● Modifiche da salvare' : notice || (engine ? '✓ Tutto salvato' : 'Documento non caricato');
-    q('[data-action=save]').disabled = !engine || saving || loading || loadFailed || !!q('.pb-inspector :invalid') || !engine.dirty;
+    q('.pb-status').textContent = loading ? 'Caricamento…' : saving ? 'Salvataggio…' : (engine?.dirty || options.isDirty?.()) ? '● Modifiche da salvare' : notice || (engine ? '✓ Tutto salvato' : 'Documento non caricato');
+    q('[data-action=save]').disabled = !engine || saving || loading || loadFailed || !!q('.pb-inspector :invalid') || !(engine.dirty || options.isDirty?.());
     q('[data-action=undo]').disabled = !engine?.past.length;
     q('[data-action=redo]').disabled = !engine?.future.length;
     q('[data-action=reload]').disabled = saving || loading;
@@ -117,7 +117,7 @@ export async function mountEditor(root, options) {
         const blob = new Blob([JSON.stringify(loadFailed?raw:engine?.document??raw,null,2)],{type:'application/json'});
         const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pagebuilder.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
       }
-      if (action==='reload') { if (!engine?.dirty || window.confirm('Riaprire il documento salvato? Le modifiche locali verranno perse. Puoi prima esportarle.')) await load(); return; }
+      if (action==='reload') { if (!(engine?.dirty || options.isDirty?.()) || window.confirm('Riaprire il documento salvato? Le modifiche locali verranno perse. Puoi prima esportarle.')) await load(); return; }
       if (['desktop','tablet','mobile'].includes(action)) {
         const size={desktop:'100%',tablet:'820px',mobile:'390px'}[action];
         q('.pb-preview-wrap').style.width=size;
@@ -184,7 +184,7 @@ export async function mountEditor(root, options) {
     if((event.ctrlKey||event.metaKey)&&event.key==='s'){event.preventDefault();q('[data-action=save]').click();}
     if((event.ctrlKey||event.metaKey)&&event.key==='z'&&!event.target.matches('input,textarea,select')){event.preventDefault();engine?.[event.shiftKey?'redo':'undo']();refresh();}
   },{signal:abort.signal});
-  window.addEventListener('beforeunload',event=>{if(engine?.dirty){event.preventDefault();event.returnValue='';}},{signal:abort.signal});
+  window.addEventListener('beforeunload',event=>{if(engine?.dirty || options.isDirty?.()){event.preventDefault();event.returnValue='';}},{signal:abort.signal});
   await load();
-  return {get engine(){return engine;},reload:load,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;abort.abort();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
+  return {get engine(){return engine;},reload:load,refreshStatus:status,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;abort.abort();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
 }
