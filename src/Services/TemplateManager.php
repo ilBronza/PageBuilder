@@ -22,8 +22,10 @@ class TemplateManager
             if ($template) $template = PageTemplate::whereKey($template->id)->lockForUpdate()->firstOrFail();
             if (($input['revision'] ?? null) !== ($template?->revision ?? 0)) throw new ConflictHttpException('Template changed. Reload before saving.');
             $template ??= new PageTemplate(['context' => $context, 'kind' => 'page']);
+            app(RevisionHistory::class)->record($template);
             $template->fill(['name' => $input['name'], 'document' => $document, 'revision' => ($template->revision ?? 0) + 1]);
             $template->save();
+            app(RevisionHistory::class)->record($template);
             return $template;
         });
     }

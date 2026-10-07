@@ -67,8 +67,10 @@ class ContentManager
                 $document = null;
             } else throw new \InvalidArgumentException('Invalid content mode');
             $content ??= new PageContent;
+            app(RevisionHistory::class)->record($content);
             $content->fill(['mode' => $mode, 'kind' => $definition['kind'], 'document' => $document, 'template_id' => $templateId, 'ownership_key' => $locked->pageBuilderOwnershipKey($area), 'revision' => ($content->revision ?? 0) + 1]);
             $content->save();
+            app(RevisionHistory::class)->record($content);
             $locked->setAttribute($definition['column'], $content->id);
             $locked->save();
             $owner->setAttribute($definition['column'], $content->id);

@@ -42,6 +42,7 @@ abstract class TestCase extends \Orchestra\Testbench\TestCase
     protected function setUp(): void {
         parent::setUp();
         (require __DIR__.'/../database/migrations/2026_09_17_000001_create_pagebuilder_tables.php')->up();
+        (require __DIR__.'/../database/migrations/2026_10_04_000002_create_pagebuilder_revisions_table.php')->up();
         foreach (['products','articles'] as $table) Schema::create($table,function (Blueprint $t) {
             $t->id();$t->string('name');$t->foreignId('page_content_id')->nullable()->constrained('pagebuilder_contents');$t->foreignId('description_page_content_id')->nullable()->constrained('pagebuilder_contents');$t->timestamps();
         });

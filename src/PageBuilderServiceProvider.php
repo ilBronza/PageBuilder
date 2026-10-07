@@ -30,6 +30,11 @@ class PageBuilderServiceProvider extends ServiceProvider
         ], 'pagebuilder.assets');
         if (!config('pagebuilder.routes')) return;
         Route::prefix(config('pagebuilder.prefix'))->middleware(config('pagebuilder.middleware'))->name('pagebuilder.')->group(function () {
+            Route::get('records/{host}/{record}/edit', [BuilderController::class, 'workspace'])->name('workspace');
+            Route::get('records/{host}/{record}/areas/{area}/history/{revision?}', [BuilderController::class, 'contentHistory'])->whereNumber('revision')->name('contents.history');
+            Route::get('templates/{template}/history/{revision?}', [BuilderController::class, 'templateHistory'])->whereNumber('revision')->name('templates.history');
+            Route::get('contents/orphans', [BuilderController::class, 'orphans'])->name('orphans.index');
+            Route::get('contents/orphans/{content}', [BuilderController::class, 'orphan'])->name('orphans.show');
             Route::get('records/{host}/{record}/areas/{area}', [BuilderController::class, 'show'])->name('contents.show');
             Route::put('records/{host}/{record}/areas/{area}', [BuilderController::class, 'save'])->name('contents.save');
             Route::post('records/{host}/{record}/areas/{area}/preview', [BuilderController::class, 'preview'])->name('contents.preview');
