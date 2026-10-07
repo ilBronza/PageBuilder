@@ -4,6 +4,7 @@
 
 - `resources/js/core.js`: documento, validazione, comandi atomici, storia e checkpoint di salvataggio. Nessun accesso DOM, HTTP o Laravel.
 - `resources/js/editor.js`: interfaccia incorporabile, accesso ai dati tramite adapter e selezione media tramite callback.
+- `resources/js/workspace.js`: gestione riutilizzabile di record, aree, template, cronologia e recupero; lo stesso modulo serve playground e view Laravel.
 - `resources/js/render.js` / `src/Documents/Renderer.php`: resa UIkit. I casi in `tests/fixtures/parity.json` verificano lo stesso HTML per i due renderer. L’editor Laravel può usare l’endpoint PHP per un percorso unico, incluso il tema dell’app tramite `previewStyles`.
 - `src/Services`: autorizzazioni, transazioni, revisioni, contesti e collegamenti.
 - `src/Integrations/FileCabinetSource.php`: lettura circoscritta di tipi FileCabinet. Nessuna dipendenza FileCabinet nel nucleo frontend o nel renderer.
@@ -30,7 +31,7 @@
 
 La radice `page` contiene sezioni; la radice `fragment` contiene righe. Sezione → righe → colonne → elementi. `area` si inserisce in una colonna di un template pagina e risolve solo frammenti statici dichiarati: non può inserire un documento completo. I frammenti non ammettono `area` né binding e non possono applicare un template. Questa restrizione della v1 rende il grafo delle inclusioni aciclico. Esiste anche un controllo esplicito contro il riferimento all’area principale.
 
-I tre oggetti `props`, `styles`, `bindings` sono separati, obbligatori e possono essere vuoti. `DocumentCast` e `Codec` mantengono `{}` nella serializzazione PHP, senza trasformarlo in `[]`. Gli ID dei nodi sono univoci nel documento. Duplicare un ramo rigenera tutti gli ID; spostarlo li conserva. La storia mantiene al massimo 100 comandi in memoria e non viene persistita.
+I tre oggetti `props`, `styles`, `bindings` sono separati, obbligatori e possono essere vuoti. `DocumentCast` e `Codec` mantengono `{}` nella serializzazione PHP, senza trasformarlo in `[]`. Gli ID dei nodi sono univoci nel documento. Duplicare un ramo rigenera tutti gli ID; spostarlo li conserva. La storia Annulla/Ripristina mantiene al massimo 100 comandi in memoria. Separatamente, `pagebuilder_revisions` conserva gli stati salvati di contenuti e template; l’API ne elenca gli ultimi 100 senza eliminare quelli precedenti.
 
 `catalog.json` definisce proprietà, valori predefiniti, tipi di controlli e compatibilità con sorgenti; `styles.json` definisce token grafici ammessi. `document.schema.json` è uno schema JSON Schema 2020-12 generato da `node bin/generate-schema.mjs`. I validator PHP/JS applicano inoltre modalità, ID univoci, cardinalità delle sorgenti, conteggio totale (500 nodi), dimensione (1 MB), profondità e vincoli delle griglie. Lo schema JSON da solo non sostituisce questi controlli.
 
@@ -45,7 +46,7 @@ Le associazioni usano foreign key dirette sul modello ospitante. Non c’è una 
 Il servizio blocca il record e il contenuto in una transazione, confronta identità e revisione ricevute e crea/aggiorna esclusivamente il documento di quell’area. Record e contenuti devono essere sulla stessa connessione database. Il trait rifiuta l’assegnazione diretta di un contenuto con un’altra ownership, anche quando una normale foreign key sarebbe valida. Il rendering verifica nuovamente l’ownership e non mostra un documento associato abusivamente via query SQL.
 
 - **Aggiornamento normale:** stesso documento e stesso riferimento, revisione incrementata.
-- **Cambio statico/template:** sostituzione esplicita della fonte del layout dell’area; l’eventuale vecchio layout statico non è un backup. Le altre aree rimangono indipendenti.
+- **Cambio statico/template:** sostituzione esplicita della fonte del layout dell’area; il layout precedente viene archiviato nella cronologia nella stessa transazione del salvataggio. Le altre aree rimangono indipendenti.
 - **Detach:** `ContentManager::detach()` annulla il riferimento e libera la ownership nella transazione; conserva il contenuto.
 - **Sostituzione con un nuovo documento:** detach esplicito, quindi nuovo caricamento/salvataggio dell’area vuota. Per l’atomicità dell’intera operazione racchiudi le due chiamate nella stessa transazione. Nessun API accetta un ID arbitrario da associare; per recuperare un orfano, l’app autorizza il recupero e copia il suo documento in un nuovo contenuto.
 - **Eliminazione Eloquent del proprietario:** libera le ownership e conserva i documenti. Il soft delete mantiene i riferimenti per consentire il ripristino. Le eliminazioni via query massiva/SQL e le cascade del database non invocano gli eventi Eloquent: possono lasciare ownership residue.
@@ -72,3 +73,13 @@ Fornisci all’editor lo stesso catalogo serializzato con `Codec::wire()` e un r
 Gli adapter browser implementano `load()` e `save(document)`, opzionalmente `preview(document, {signal})`. Un adapter esterno deve proteggere l’accesso e verificare una revisione o ETag. `httpAdapter` implementa GET/PUT, cookie same-origin, token CSRF, controllo degli errori e anteprima cancellabile per le route Laravel. L’app può passare un callback `pickImage()` che restituisce `{url, alt}` senza introdurre un archivio media nel builder.
 
 Riferimenti UIkit: [griglie](https://getuikit.com/docs/grid), [larghezze responsive](https://getuikit.com/docs/width). UIkit è incluso con versione fissata; non si dipende da una CDN in esecuzione.
+
+## Gestione e recupero
+
+`WorkspaceOptions::forRecords()` accetta solo un alias registrato e record forniti dall’app, dello stesso modello/contesto. Filtra i Gate `view` e `update` su ogni area prima di serializzare ID, etichetta e URL. Non serializza modelli completi. Il workspace protegge i cambi di documento con modifiche locali; cambiare record di esempio durante la modifica di un template conserva le modifiche e aggiorna soltanto l’anteprima.
+
+La modalità editor `area` è una presentazione frontend: gli adapter inviano `mode: static` al salvataggio del frammento. L’importazione JSON è un comando atomico validato e annullabile, non modifica identità o revisione della destinazione.
+
+`RevisionHistory` archivia ogni versione tramite `ContentManager` e `TemplateManager`, prima e dopo la modifica e dentro la medesima transazione. Le FK esplicite identificano contenuto o template; non c’è una relazione polimorfica verso il proprietario. Il ripristino passa nuovamente dal salvataggio normale con la revisione attuale: non abbassa il contatore e non aggira validazione o Gate. Ripristinare un’associazione a un template non blocca la versione del template.
+
+Il recupero degli orfani richiede separatamente `pagebuilder.recover` (`list`, `view`). La lettura per ID ricontrolla che l’ownership sia vuota. Si copia il payload in un contenuto della destinazione attraverso `ContentManager`; nessun ID del documento di origine viene assegnato alla destinazione. Anche i documenti ancora referenziati da tabelle esterne ma senza ownership non vengono modificati o cancellati. L’app deve usare il Gate per limitare la lettura al proprio perimetro.

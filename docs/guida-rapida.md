@@ -203,7 +203,21 @@ Gate::define('pagebuilder.template', function (User $user, string $action, strin
 
 `pagebuilder.view` viene usato anche dal renderer. Se un'area deve essere pubblica, il Gate deve autorizzare esplicitamente l'utente anonimo e verificare che il record sia pubblicato.
 
-## 6. Mostra l'editor per una pagina statica
+## 6. Apri la gestione del record
+
+Una volta completati i passi precedenti puoi aprire direttamente:
+
+```php
+route('pagebuilder.workspace', ['host' => 'products', 'record' => $product->getKey()]);
+```
+
+La schermata permette di cambiare area, creare/duplicare/rinominare template, applicarli al record, importare JSON e ripristinare le versioni salvate. L’area «Descrizione libera» usa lo stesso editor e viene salvata come frammento statico.
+
+Per il selettore di più prodotti e le immagini della tua libreria, usa [workspace.blade.php](../examples/workspace.blade.php). Passa soltanto i prodotti già filtrati per tenant/perimetro dell’app. Le autorizzazioni vengono ricontrollate per ciascuna area.
+
+Se il package era già installato, esegui `php artisan migrate` per aggiungere la cronologia e `php artisan vendor:publish --tag=pagebuilder.assets --force` per aggiornare il frontend. Le versioni precedenti all’aggiornamento iniziano a essere archiviate al primo salvataggio successivo.
+
+### Editor singolo per una pagina statica
 
 Crea una pagina dell'area amministrativa che carica un record già salvato. La view deve essere protetta dalla stessa policy dell'app; il package controlla di nuovo il Gate sul singolo salvataggio.
 

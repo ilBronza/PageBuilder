@@ -9,16 +9,20 @@ cd pageBuilder
 npm run playground
 ```
 
-Apri **http://127.0.0.1:4173**. Serve Node 20+. Non serve `npm install`. Il server ascolta solo su localhost. Cambia un titolo, scegli una griglia, salva, premi **Riapri** e apri **pagina salvata**. I dati sono file JSON in `playground/.data/`, scritti con sostituzione atomica e revisione controllata. Riavviando il server rimangono disponibili.
+Apri **http://127.0.0.1:4173**. Serve Node 20+. Non serve `npm install`. Il server ascolta solo su localhost. Cambia un titolo, scegli una griglia, salva, premi **Riapri** e apri **pagina salvata**. I dati e la cronologia sono in `playground/.data/workspace.json`, scritto con sostituzione atomica e revisione controllata. Al primo salvataggio vengono inclusi i precedenti file `page.json`, `template.json` e `area-*.json`, che restano intatti. Riavviando il server rimangono disponibili.
 
-Il selettore offre pagina statica, template condiviso e area libera. I record dimostrativi Arco e Tratto hanno dati e aree diversi: modificare e salvare il template modifica entrambi, cambiare il record d’anteprima non salva i suoi valori nel layout. I valori indicati come FileCabinet nel playground sono dati dimostrativi; il vero adattatore PHP è separato e testato sul tipo locale `FormrowText`.
+La barra di gestione permette di scegliere record e area, creare, duplicare e rinominare template, applicarli al record, importare/esportare JSON e ripristinare una versione dalla cronologia. Il selettore «Modifica» alterna contenuto del record e template condivisi. I record dimostrativi Arco e Tratto hanno dati e aree diversi: modificare e salvare il template modifica entrambi, cambiare il record d’anteprima non salva i suoi valori nel layout. I valori indicati come FileCabinet nel playground sono dati dimostrativi; il vero adattatore PHP è separato e testato sul tipo locale `FormrowText`.
 
 ## Compatibilità e test
 
-Verificato su **PHP 8.4.22, Laravel 11.51.0, PHPUnit 11.5.55, Testbench 9, SQLite in memoria, Node 20.19.5**. `composer.json` richiede PHP ^8.2; le dipendenze Illuminate sono fornite dall’app Laravel ospitante. La suite è stata verificata con Laravel 11. Nessuna verifica su MySQL/PostgreSQL o PHP 8.2/8.3 in questa consegna.
+Verificato su **PHP 8.4.23, Laravel 11.51.0, PHPUnit 11.5.55, Testbench 9, SQLite in memoria, Node 20.19.5**. `composer.json` richiede PHP ^8.2; le dipendenze Illuminate sono fornite dall’app Laravel ospitante. La suite è stata verificata con Laravel 11. Nessuna verifica su MySQL/PostgreSQL o PHP 8.2/8.3 in questa consegna.
 
 ```sh
 npm test
+# Test automatici nel browser (dipendenza di sviluppo opzionale):
+npm install
+npx playwright install chromium
+npm run test:browser
 # Dopo aver installato le dipendenze Composer nel checkout:
 composer test
 # Ambiente condiviso esistente su questo Mac:
@@ -51,9 +55,9 @@ php artisan vendor:publish --tag=pagebuilder.assets
 php artisan migrate
 ```
 
-Le tabelle sono `pagebuilder_templates` e `pagebuilder_contents`; gli ID sono unsigned BIGINT. Le migration dell’app aggiungono le proprie foreign key nullable verso `pagebuilder_contents`, anche se la chiave primaria del modello è un UUID. Vedi [migration d’esempio](examples/add_product_areas.php).
+Le tabelle sono `pagebuilder_templates`, `pagebuilder_contents` e `pagebuilder_revisions`; gli ID sono unsigned BIGINT. Le migration dell’app aggiungono le proprie foreign key nullable verso `pagebuilder_contents`, anche se la chiave primaria del modello è un UUID. Vedi [migration d’esempio](examples/add_product_areas.php).
 
-I package Crud, Form, FormField, UikitTemplate e FileCabinet **non sono dipendenze obbligatorie**. Il renderer usa CSS UIkit 3.21.16 MIT, incluso localmente per il playground; nel sito puoi usare il tuo tema UIkit. Il contenuto pubblico non richiede JavaScript UIkit né il codice dell’editor. Pubblica di nuovo gli asset dopo un aggiornamento del package.
+I package Crud, Form, FormField, UikitTemplate e FileCabinet **non sono dipendenze obbligatorie**. Il renderer usa CSS UIkit 3.21.16 MIT, incluso localmente per il playground; nel sito puoi usare il tuo tema UIkit. Il contenuto pubblico non richiede JavaScript UIkit né il codice dell’editor. Dopo questo aggiornamento esegui `php artisan migrate` per la cronologia e pubblica di nuovo gli asset con `php artisan vendor:publish --tag=pagebuilder.assets --force`.
 
 ## Modelli, aree e autorizzazioni
 
@@ -82,6 +86,45 @@ Gate::define('pagebuilder.template', function (User $user, string $action, strin
 ```
 
 Le azioni template sono `list`, `view`, `create`, `update`, `use`. Il contesto e il template consentono policy più fini. Il renderer pubblico usa `pagebuilder.view` sul record e su ogni area inclusa. Per visitatori anonimi, il Gate deve accettare `?User` e autorizzare esplicitamente la visibilità pubblica. Le sorgenti possono avere un ulteriore predicato di autorizzazione.
+
+## Schermata di gestione pronta
+
+Dopo aver registrato modello, contesto e Gate, apri la route autenticata:
+
+```php
+route('pagebuilder.workspace', ['host' => 'products', 'record' => $product->getKey()])
+// /pagebuilder/records/products/123/edit
+```
+
+Per avere il selettore di più record nel tuo layout, passa una collezione già filtrata dall’app (ad esempio per tenant) a `WorkspaceOptions`. Il servizio include soltanto record e aree autorizzati sia in lettura sia in modifica:
+
+```blade
+@php
+    $options = app(\IlBronza\PageBuilder\Services\WorkspaceOptions::class)
+        ->forRecords('products', $products, auth()->user());
+    $options['media'] = [
+        ['url' => '/media/prodotto.jpg', 'alt' => 'Vista frontale del prodotto', 'label' => 'Foto principale'],
+    ];
+@endphp
+@include('pagebuilder::workspace', ['options' => $options])
+```
+
+Non esiste un endpoint che enumeri tutti i record dell’app. Ogni record delle opzioni può avere un `publicUrl` per area, impostato dall’integrazione. Il selettore media mostra soltanto la lista pubblica fornita; chi monta il workspace direttamente in JavaScript può passare `pickImage()` per usare la propria libreria. Vedi [esempio completo](examples/workspace.blade.php).
+
+**Importa JSON** valida struttura, tipo, sorgenti e limite di 1 MB prima di cambiare il documento. L’importazione resta locale fino a Salva ed è annullabile. **Cronologia** mostra le ultime 100 versioni salvate dell’area o del template; il ripristino usa le stesse autorizzazioni, validazioni e revisioni del salvataggio normale. Un conflitto lascia intatte le modifiche locali.
+
+Le versioni sono conservate senza cancellazione automatica. Per contenuti precedenti all’aggiornamento, il primo salvataggio archivia anche lo stato precedente. Ripristinare il collegamento di un’area a un template continua a usare l’ultima versione di quel template; per recuperare un suo layout precedente, usa la cronologia del template. Le modifiche condivise diventano visibili immediatamente dopo il salvataggio riuscito.
+
+Il pulsante **Recupera documento** è opzionale e richiede un Gate aggiuntivo, negato per default:
+
+```php
+Gate::define('pagebuilder.recover', function (User $user, string $action, $content = null) {
+    // Verifica anche il perimetro/tenant del documento nella tua applicazione.
+    return $user->can('recover-page-content');
+});
+```
+
+Le azioni sono `list` e `view`. La lista contiene al massimo 100 candidati con ownership vuota, filtrati dal Gate sul singolo documento. Il recupero **copia** il contenuto nell’area selezionata, preserva l’originale e ricontrolla i permessi del record di destinazione. Il package non elimina né ricollega automaticamente gli orfani.
 
 ## Salvataggio e rendering
 
@@ -126,13 +169,13 @@ $manager->save($product, 'main', [
 ], $user);
 ```
 
-Un contenuto statico ha il proprio documento; uno collegato al template ha `document = null`. Passare da una modalità all’altra è una sostituzione esplicita del layout dell’area: esporta prima il layout statico se serve conservarlo. Le altre aree non vengono toccate. Gli aggiornamenti del template diventano visibili dopo il commit del salvataggio. Non ci sono copie del layout, revisioni bloccate o cache del template nel modello proprietario.
+Un contenuto statico ha il proprio documento; uno collegato al template ha `document = null`. Passare da una modalità all’altra è una sostituzione esplicita del layout dell’area: la cronologia conserva lo stato precedente e consente di ripristinarlo. Le altre aree non vengono toccate. Gli aggiornamenti del template diventano visibili dopo il commit del salvataggio. Non ci sono copie del layout, revisioni bloccate o cache del template nel modello proprietario.
 
 [ProductContext.php](examples/ProductContext.php) espone attributo, relazione singola, collezione di stringhe e campo FileCabinet. Ogni `Source` ha ID, etichetta, tipo, cardinalità e callback di lettura server. Le callback definiscono esattamente quali dati possono essere letti. Tipi: `text`, `number`, `date`, `boolean`, `url`, `image`; cardinalità `one` e `many`. Le collezioni di scalari alimentano l’elenco; non esistono ripetitori di layout, query o filtri generici. Non vengono serializzati modelli interi.
 
 Un titolo collegato salva `bindings: {"text": "product.name"}`. L’editor tiene i valori del record di esempio in uno stato separato dal documento. Le sorgenti mancanti producono testo vuoto o elenco vuoto; non ripiegano su valori d’anteprima salvati. Fonti non dichiarate/incompatibili vengono rifiutate al salvataggio del template.
 
-Usa [template-editor.blade.php](examples/template-editor.blade.php) per modificare un template su un record autorizzato. L’app seleziona il record di esempio e passa il suo URL di anteprima: questo evita un endpoint che esponga indiscriminatamente tutti i record. L’archivio non impone una UI amministrativa all’app ospitante; il playground offre il selettore dimostrativo.
+Usa [template-editor.blade.php](examples/template-editor.blade.php) per modificare un template su un record autorizzato. L’app seleziona il record di esempio e passa il suo URL di anteprima: questo evita un endpoint che esponga indiscriminatamente tutti i record. La view `pagebuilder::workspace` offre la gestione amministrativa incorporabile; l’editor singolo resta disponibile per integrazioni personalizzate.
 
 ### FileCabinet
 
@@ -144,6 +187,10 @@ Supportati: testo, textarea, interi, decimali, booleani, date/datetime non multi
 
 | Metodo | Percorso relativo al prefisso `pagebuilder` | Funzione |
 | --- | --- | --- |
+| GET | `records/{host}/{record}/edit` | Schermata di gestione del record |
+| GET | `records/{host}/{record}/areas/{area}/history/{revision?}` | Cronologia e singola versione dell’area |
+| GET | `templates/{template}/history/{revision?}` | Cronologia e singola versione del template |
+| GET | `contents/orphans` / `contents/orphans/{content}` | Recupero opzionale protetto da Gate dedicato |
 | GET / PUT | `records/{host}/{record}/areas/{area}` | Carica / salva un’area |
 | POST | `records/{host}/{record}/areas/{area}/preview` | Anteprima statica PHP |
 | GET / POST | `templates?context=product` / `templates` | Elenco e descrittori / creazione |
@@ -172,4 +219,4 @@ Carica `editor.css`; la libreria carica i descrittori JSON e il CSS di anteprima
 
 Vedi [architettura e schema](docs/architecture.md) per esclusività, documenti orfani, frammenti, estensioni e formato JSON. Le colonne sono gestite dalla griglia: riducendole, gli elementi delle colonne rimosse vengono aggiunti in ordine all’ultima rimasta. Gli ID degli elementi si conservano. Le impostazioni delle colonne rimosse sono recuperabili con Annulla, non vengono fuse in modo ambiguo.
 
-Il package non offre pubblicazione editoriale, import YOOtheme, rich text HTML, revisioni editoriali, ripetitori complessi, collaborazione simultanea o gestione completa del tema/media. Il campo testo è testo semplice con a capo; tutto viene escapato. Il controllo `revision` serve a rilevare conflitti, non costituisce un archivio delle versioni.
+Il package non offre pubblicazione editoriale, import YOOtheme, rich text HTML, approvazioni editoriali, ripetitori complessi, collaborazione simultanea o gestione completa del tema/media. Il campo testo è testo semplice con a capo; tutto viene escapato. Il controllo `revision` rileva i conflitti; la tabella separata `pagebuilder_revisions` conserva le versioni salvate. Non esiste un flusso editoriale di approvazione o pubblicazione differita.
