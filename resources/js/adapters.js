@@ -15,7 +15,7 @@ export function httpAdapter({url, previewUrl, csrfToken, mode = 'static', onLoad
     },
     async save(document) {
       if (!envelope) throw new Error('Carica il documento prima di salvarlo.');
-      envelope = await request(url,'PUT',{...envelope, mode, document});
+      envelope = await request(url,'PUT',{...envelope, mode: mode === 'area' ? 'static' : mode, document});
       return envelope.document;
     },
     ...(previewUrl ? {async preview(document, {signal} = {}) { return (await request(previewUrl,'POST',{document},signal)).html; }} : {}),

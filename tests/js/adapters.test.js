@@ -10,3 +10,16 @@ test('template-backed areas cannot open a competing local layout',async()=>{
  const original=globalThis.fetch;globalThis.fetch=async()=>new Response(JSON.stringify({id:4,mode:'template',document:null}));
  try{await assert.rejects(()=>httpAdapter({url:'/content'}).load(),/template condiviso/);}finally{globalThis.fetch=original;}
 });
+test('fragment editor mode is persisted as static content', async () => {
+ const original = globalThis.fetch; let payload;
+ globalThis.fetch = async (_url, request) => {
+  if (request.method === 'PUT') payload = JSON.parse(request.body);
+  return new Response(JSON.stringify({id: 8, revision: 2, mode: 'static', document: {version: 1, kind: 'fragment', children: []}}));
+ };
+ try {
+  const adapter = httpAdapter({url: '/area', mode: 'area'});
+  await adapter.save(await adapter.load());
+  assert.equal(payload.mode, 'static'); assert.equal(payload.document.kind, 'fragment');
+  assert.equal(payload.id, 8); assert.equal(payload.revision, 2);
+ } finally { globalThis.fetch = original; }
+});
