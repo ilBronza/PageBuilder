@@ -44,3 +44,14 @@ test('schema rejects unknown keys, duplicate IDs, nested sections, bindings in s
 test('history branches discard redo and reorder is keyboard accessible',()=>{
  const e=engine();e.reorder('details',-1);assert.equal(e.document.children[0].id,'details');e.undo();assert.equal(e.future.length,1);e.update('headline','props','text','new branch');assert.equal(e.future.length,0);
 });
+test('import is validated before mutation, stays unsaved and can be undone', () => {
+ const e = engine(), document = clone(staticDocument);
+ document.children[0].children[0].children[0].children[1].props.text = 'Imported title';
+ e.import(document); assert.equal(e.dirty, true); assert.deepEqual(e.document, document);
+ e.undo(); assert.deepEqual(e.document, staticDocument); assert.equal(e.dirty, false);
+ e.redo(); assert.deepEqual(e.document, document);
+ const past = e.past.length;
+ for (const invalid of [templateDocument, {version:1, kind:'fragment', children:[]}, {...document, version:2}]) {
+  assert.throws(() => e.import(invalid)); assert.deepEqual(e.document, document); assert.equal(e.past.length, past);
+ }
+});

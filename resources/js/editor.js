@@ -15,7 +15,7 @@ export async function mountEditor(root, options) {
   let loadFailed = false;
   let engine = null, selected = null, saving = false, loading = false, error = '', notice = '', propertyTab = 'content', previewRequest = null, sequence = 0, dragged = null, raw = null, disposed = false;
   root.classList.add('pb-editor');
-  root.innerHTML = `<header class="pb-toolbar"><div class="pb-brand"><span class="pb-mark">▥</span><div><strong>${e(options.title ?? 'PageBuilder')}</strong><small>${e(mode === 'template' ? 'TEMPLATE CONDIVISO' : mode === 'area' ? 'AREA DEL RECORD' : 'PAGINA STATICA')}</small></div></div><div class="pb-history">${button('undo','Annulla','↶')}${button('redo','Ripristina','↷')}</div><div class="pb-devices" role="group" aria-label="Larghezza anteprima">${button('desktop','Desktop','▰','aria-pressed="true"')}${button('tablet','Tablet','▯','aria-pressed="false"')}${button('mobile','Mobile','▯','aria-pressed="false"')}</div><span class="pb-status" role="status"></span>${button('export','Esporta JSON','↓ JSON')}${button('reload','Riapri documento','Riapri')}${button('save','Salva documento','Salva','class="pb-primary"')}</header><div class="pb-message" role="alert" hidden></div><div class="pb-workspace"><aside class="pb-sidebar" aria-label="Struttura e proprietà"><div class="pb-side-heading"><div><small>IL TUO DOCUMENTO</small><h2>Struttura</h2></div>${button('root','Aggiungi struttura','+')}</div><div class="pb-tree"></div><div class="pb-inspector"></div></aside><main class="pb-stage"><div class="pb-stage-label"><span>ANTEPRIMA LIVE</span><span class="pb-size-label">Desktop · fluida</span></div><div class="pb-preview-wrap"><iframe title="Anteprima del documento" sandbox="allow-same-origin"></iframe></div><div class="pb-stage-footer">Seleziona un elemento per modificarlo <span>UIkit · PageBuilder</span></div></main></div><dialog class="pb-catalog"><div class="pb-dialog-heading"><div><small>DAI FORMA AL CONTENUTO</small><h2>Aggiungi un elemento</h2></div>${button('close','Chiudi catalogo','×')}</div><div class="pb-catalog-grid"></div></dialog>`;
+  root.innerHTML = `<header class="pb-toolbar"><div class="pb-brand"><span class="pb-mark">▥</span><div><strong>${e(options.title ?? 'PageBuilder')}</strong><small>${e(mode === 'template' ? 'TEMPLATE CONDIVISO' : mode === 'area' ? 'AREA DEL RECORD' : 'PAGINA STATICA')}</small></div></div><div class="pb-history">${button('undo','Annulla','↶')}${button('redo','Ripristina','↷')}</div><div class="pb-devices" role="group" aria-label="Larghezza anteprima">${button('desktop','Desktop','▰','aria-pressed="true"')}${button('tablet','Tablet','▯','aria-pressed="false"')}${button('mobile','Mobile','▯','aria-pressed="false"')}</div><span class="pb-status" role="status"></span>${button('import','Importa JSON','↑ JSON')}<input type="file" data-import accept=".json,application/json" hidden>${button('export','Esporta JSON','↓ JSON')}${button('reload','Riapri documento','Riapri')}${button('save','Salva documento','Salva','class="pb-primary"')}</header><div class="pb-message" role="alert" hidden></div><div class="pb-workspace"><aside class="pb-sidebar" aria-label="Struttura e proprietà"><div class="pb-side-heading"><div><small>IL TUO DOCUMENTO</small><h2>Struttura</h2></div>${button('root','Aggiungi struttura','+')}</div><div class="pb-tree"></div><div class="pb-inspector"></div></aside><main class="pb-stage"><div class="pb-stage-label"><span>ANTEPRIMA LIVE</span><span class="pb-size-label">Desktop · fluida</span></div><div class="pb-preview-wrap"><iframe title="Anteprima del documento" sandbox="allow-same-origin"></iframe></div><div class="pb-stage-footer">Seleziona un elemento per modificarlo <span>UIkit · PageBuilder</span></div></main></div><dialog class="pb-catalog"><div class="pb-dialog-heading"><div><small>DAI FORMA AL CONTENUTO</small><h2>Aggiungi un elemento</h2></div>${button('close','Chiudi catalogo','×')}</div><div class="pb-catalog-grid"></div></dialog>`;
   const q = selector => root.querySelector(selector);
   const frame = q('iframe');
   const status = () => {
@@ -24,6 +24,8 @@ export async function mountEditor(root, options) {
     q('[data-action=undo]').disabled = !engine?.past.length;
     q('[data-action=redo]').disabled = !engine?.future.length;
     q('[data-action=reload]').disabled = saving || loading;
+    q('[data-action=import]').disabled = !engine || saving || loading || loadFailed;
+    options.onStatus?.({saving, loading, dirty: !!engine?.dirty, loadFailed});
     q('.pb-message').hidden = !error; q('.pb-message').textContent = error;
   };
   function item(n, depth) {
@@ -92,6 +94,10 @@ export async function mountEditor(root, options) {
     } catch (err) { if (err.name!=='AbortError' && seq===sequence) { error=`Anteprima non disponibile: ${err.message}`; status(); } }
   }
   function refresh(full = true) { notice=''; tree(); if (full) inspector(); status(); preview(); }
+  function importDocument(document) {
+    if (!engine || loading || saving || loadFailed) throw new Error('Attendi il caricamento del documento prima di importare.');
+    engine.import(document); selected=null; refresh();
+  }
   async function load() {
     loading=true; error=''; status();
     try {
@@ -113,6 +119,7 @@ export async function mountEditor(root, options) {
     if (!action) return;
     try {
       error='';
+      if (action==='import') { q('[data-import]').click(); return; }
       if (action==='export') {
         const blob = new Blob([JSON.stringify(loadFailed?raw:engine?.document??raw,null,2)],{type:'application/json'});
         const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pagebuilder.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
@@ -150,6 +157,19 @@ export async function mountEditor(root, options) {
       refresh();
     } catch(err){error=err.message;status();}
   },{signal:abort.signal});
+  q('[data-import]').addEventListener('change', async event => {
+    const file = event.target.files[0], current = engine;
+    event.target.value = '';
+    if (!file) return;
+    try {
+      if (file.size > 1048576) throw new Error('Documento oltre 1 MB');
+      const document = JSON.parse(await file.text());
+      new Engine(document, catalog, styles, {...engine.options, kind: engine.document.kind});
+      if (disposed || current !== engine) return;
+      if (!window.confirm('Importare questo documento? Sostituisce il contenuto nell’editor. Puoi annullare prima di salvare.')) return;
+      importDocument(document);
+    } catch (err) { error = `Importazione non riuscita: ${err.message}`; status(); }
+  }, {signal: abort.signal});
   function propertyChange(event) {
     if (!engine || !selected) return;
     const t=event.target;
@@ -186,5 +206,5 @@ export async function mountEditor(root, options) {
   },{signal:abort.signal});
   window.addEventListener('beforeunload',event=>{if(engine?.dirty || options.isDirty?.()){event.preventDefault();event.returnValue='';}},{signal:abort.signal});
   await load();
-  return {get engine(){return engine;},reload:load,refreshStatus:status,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;abort.abort();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
+  return {get engine(){return engine;},get busy(){return saving || loading;},importDocument,reload:load,refreshStatus:status,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;abort.abort();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
 }

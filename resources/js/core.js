@@ -104,6 +104,10 @@ export class Engine {
     this.document = clone(validate(document, this.catalog, this.styles, this.options));
     this.past = []; this.future = []; this.markSaved();
   }
+  import(document) {
+    const next = clone(validate(document, this.catalog, this.styles, {...this.options, kind: this.document.kind}));
+    this.change(current => Object.assign(current, next));
+  }
   change(callback) {
     const next = clone(this.document); callback(next);
     validate(next, this.catalog, this.styles, this.options);
