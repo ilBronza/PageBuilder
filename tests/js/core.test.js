@@ -55,3 +55,28 @@ test('import is validated before mutation, stays unsaved and can be undone', () 
   assert.throws(() => e.import(invalid)); assert.deepEqual(e.document, document); assert.equal(e.past.length, past);
  }
 });
+
+test('HTTP without randomUUID supports rows, columns, elements and duplication', t => {
+ const cryptoDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+ const getRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto);
+ Object.defineProperty(globalThis, 'crypto', {configurable: true, value: {getRandomValues}});
+ t.after(() => Object.defineProperty(globalThis, 'crypto', cryptoDescriptor));
+ const e = new Engine({version: 1, kind: 'fragment', children: []}, catalog, styles, {mode: 'area', kind: 'fragment'});
+ const rowId = e.add(null, 'row');
+ assert.equal(e.document.children.length, 1);
+ e.grid(rowId, ['1-2', '1-2']);
+ const row = locate(e.document, rowId).node;
+ assert.equal(row.children.length, 2);
+ const headingId = e.add(row.children[1].id, 'heading', {text: 'Descrizione prodotto'});
+ assert.equal(locate(e.document, headingId).node.props.text, 'Descrizione prodotto');
+ const copyId = e.duplicate(rowId);
+ assert.equal(e.document.children.length, 2);
+ assert.equal(locate(e.document, copyId).node.children[1].children[0].props.text, 'Descrizione prodotto');
+ const ids = allIds(e.document);
+ assert.equal(new Set(ids).size, ids.length);
+ ids.forEach(id => assert.match(id, /^n_[a-f0-9]{12}4[a-f0-9]{3}[89ab][a-f0-9]{15}$/));
+ const document = clone(e.document);
+ e.undo(); assert.equal(e.document.children.length, 1);
+ e.redo(); assert.deepEqual(e.document, document);
+ assert.deepEqual(JSON.parse(JSON.stringify(e.document)), document);
+});

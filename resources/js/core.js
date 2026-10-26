@@ -72,10 +72,18 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
   walk(document.children, document.kind === 'page' ? ['section'] : ['row'], 0);
   return document;
 }
+function nodeId() {
+  if (typeof crypto.randomUUID === 'function') return `n_${crypto.randomUUID().replaceAll('-', '')}`;
+  // getRandomValues is also available on HTTP, where randomUUID requires a secure context.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  return `n_${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
+}
 export function node(type, catalog, props = {}) {
   assert(Object.hasOwn(catalog, type), 'Elemento sconosciuto');
   const def = catalog[type];
-  const result = {id: `n_${crypto.randomUUID().replaceAll('-', '')}`, type, props: {...Object.fromEntries(Object.entries(def.props).map(([k,v]) => [k,clone(v.default)])), ...props}, styles: {}, bindings: {}};
+  const result = {id: nodeId(), type, props: {...Object.fromEntries(Object.entries(def.props).map(([k,v]) => [k,clone(v.default)])), ...props}, styles: {}, bindings: {}};
   if (def.children) result.children = [];
   if (type === 'section') result.children.push(node('row', catalog));
   if (type === 'row') result.children = result.props.layout.map(() => node('column', catalog));
@@ -133,7 +141,7 @@ export class Engine {
     let fresh;
     this.change(doc => {
       const f = locate(doc,id); assert(f && f.node.type !== 'column', 'Modifica le colonne dalla griglia'); fresh = clone(f.node);
-      function renew(n) { n.id = `n_${crypto.randomUUID().replaceAll('-', '')}`; n.children?.forEach(renew); }
+      function renew(n) { n.id = nodeId(); n.children?.forEach(renew); }
       renew(fresh); f.parent.children.splice(f.index+1,0,fresh);
     });
     return fresh.id;
