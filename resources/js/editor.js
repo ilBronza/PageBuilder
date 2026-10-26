@@ -1,10 +1,20 @@
-import {Engine, clone, layouts, locate, compatible} from './core.js';
+import {Engine, clone, layouts, locate, compatible, node} from './core.js';
 import {render, escape as e} from './render.js';
+import {composition, selectionPath, caption} from './composition.js';
 
 const labels = {width:'Larghezza',text:'Testo',tag:'Tag HTML',size:'Dimensione del titolo',src:'URL immagine pubblica',alt:'Testo alternativo',ratio:'Proporzioni',href:'Collegamento',variant:'Aspetto',items:'Voci (una per riga)',area:'Area del record',background:'Sfondo',padding:'Spaziatura interna',margin:'Margine',align:'Allineamento',color:'Colore',gap:'Distanza colonne',rowGap:'Distanza righe',vertical:'Allineamento verticale'};
 const tokenLabels = {default:'Predefinito',none:'Nessuno',small:'Piccolo',medium:'Medio',large:'Grande',xlarge:'Molto grande','2xlarge':'Extra grande',expand:'Tutta larghezza',muted:'Tenue',primary:'Primary',secondary:'Secondary',left:'Sinistra',center:'Centro',right:'Destra',top:'In alto',middle:'Al centro',bottom:'In basso',collapse:'Nessuna',auto:'Originale',square:'Quadrata',landscape:'Orizzontale',portrait:'Verticale',bullet:'Punti',decimal:'Numeri',divider:'Linee',striped:'Righe alternate',text:'Testo',icon:'Icona'};
 const button = (action, label, content = label, extra = '') => `<button type="button" data-action="${action}" aria-label="${e(label)}" title="${e(label)}" ${extra}>${content}</button>`;
 const choices = (values, selected) => values.map(value=>`<option value="${e(value)}" ${value===selected?'selected':''}>${e(tokenLabels[value] ?? value)}</option>`).join('');
+const elementInfo = {
+  heading: ['Contenuti', 'Titoli e sottotitoli per organizzare la pagina', 'titolo intestazione'],
+  text: ['Contenuti', 'Paragrafi e testi descrittivi', 'paragrafo descrizione'],
+  list: ['Contenuti', 'Elenchi puntati, numerati o con separatori', 'lista punti'],
+  image: ['Media', 'Un’immagine dalla tua libreria o da un URL', 'foto fotografia'],
+  button: ['Azioni', 'Un invito all’azione con un collegamento', 'link cta bottone'],
+  divider: ['Layout', 'Una linea per separare i contenuti', 'linea separazione'],
+  area: ['Dati', 'Il contenuto di un’area libera del record', 'frammento dinamico'],
+};
 
 export async function mountEditor(root, options) {
   const base = new URL('../',import.meta.url);
@@ -14,8 +24,10 @@ export async function mountEditor(root, options) {
   const abort = new AbortController();
   let loadFailed = false;
   let engine = null, selected = null, saving = false, loading = false, error = '', notice = '', propertyTab = 'content', previewRequest = null, sequence = 0, dragged = null, raw = null, disposed = false;
+  let structureView = 'layout', insertion = null;
+  const collapsed = new Set();
   root.classList.add('pb-editor');
-  root.innerHTML = `<header class="pb-toolbar"><div class="pb-brand"><span class="pb-mark">▥</span><div><strong>${e(options.title ?? 'PageBuilder')}</strong><small>${e(mode === 'template' ? 'TEMPLATE CONDIVISO' : mode === 'area' ? 'AREA DEL RECORD' : 'PAGINA STATICA')}</small></div></div><div class="pb-history">${button('undo','Annulla','↶')}${button('redo','Ripristina','↷')}</div><div class="pb-devices" role="group" aria-label="Larghezza anteprima">${button('desktop','Desktop','▰','aria-pressed="true"')}${button('tablet','Tablet','▯','aria-pressed="false"')}${button('mobile','Mobile','▯','aria-pressed="false"')}</div><span class="pb-status" role="status"></span>${button('import','Importa JSON','↑ JSON')}<input type="file" data-import accept=".json,application/json" hidden>${button('export','Esporta JSON','↓ JSON')}${button('reload','Riapri documento','Riapri')}${button('save','Salva documento','Salva','class="pb-primary"')}</header><div class="pb-message" role="alert" hidden></div><div class="pb-workspace"><aside class="pb-sidebar" aria-label="Struttura e proprietà"><div class="pb-side-heading"><div><small>IL TUO DOCUMENTO</small><h2>Struttura</h2></div>${button('root','Aggiungi struttura','+')}</div><div class="pb-tree"></div><div class="pb-inspector"></div></aside><main class="pb-stage"><div class="pb-stage-label"><span>ANTEPRIMA LIVE</span><span class="pb-size-label">Desktop · fluida</span></div><div class="pb-preview-wrap"><iframe title="Anteprima del documento" sandbox="allow-same-origin"></iframe></div><div class="pb-stage-footer">Seleziona un elemento per modificarlo <span>UIkit · PageBuilder</span></div></main></div><dialog class="pb-catalog"><div class="pb-dialog-heading"><div><small>DAI FORMA AL CONTENUTO</small><h2>Aggiungi un elemento</h2></div>${button('close','Chiudi catalogo','×')}</div><div class="pb-catalog-grid"></div></dialog>`;
+  root.innerHTML = `<header class="pb-toolbar"><div class="pb-brand"><span class="pb-mark">▥</span><div><strong>${e(options.title ?? 'PageBuilder')}</strong><small>${e(mode === 'template' ? 'TEMPLATE CONDIVISO' : mode === 'area' ? 'AREA DEL RECORD' : 'PAGINA STATICA')}</small></div></div><div class="pb-history">${button('undo','Annulla','↶')}${button('redo','Ripristina','↷')}</div><div class="pb-devices" role="group" aria-label="Larghezza anteprima">${button('desktop','Desktop','▰','aria-pressed="true"')}${button('tablet','Tablet','▯','aria-pressed="false"')}${button('mobile','Mobile','▯','aria-pressed="false"')}</div><span class="pb-status" role="status"></span>${button('import','Importa JSON','↑ JSON')}<input type="file" data-import accept=".json,application/json" hidden>${button('export','Esporta JSON','↓ JSON')}${button('reload','Riapri documento','Riapri')}${button('save','Salva documento','Salva','class="pb-primary"')}</header><div class="pb-message" role="alert" hidden></div><div class="pb-workspace"><aside class="pb-sidebar" aria-label="Struttura e proprietà"><div class="pb-side-heading"><div><small>IL TUO DOCUMENTO</small><h2>Composizione</h2></div>${button('root','Aggiungi struttura','+')}</div><div class="pb-structure-views" role="group" aria-label="Vista della struttura">${button('view:layout','Vista layout','▥ Layout','aria-pressed="true"')}${button('view:tree','Vista albero','☷ Albero','aria-pressed="false"')}</div><div class="pb-tree" data-view="layout"></div><div class="pb-inspector"></div></aside><main class="pb-stage"><div class="pb-stage-label"><span>ANTEPRIMA LIVE</span><span class="pb-size-label">Desktop · fluida</span></div><div class="pb-contextbar" role="group" aria-label="Azioni sull’elemento selezionato" hidden></div><div class="pb-preview-wrap"><iframe title="Anteprima del documento" sandbox="allow-same-origin"></iframe></div><div class="pb-stage-footer">Seleziona un elemento per modificarlo <span>UIkit · PageBuilder</span></div></main></div><dialog class="pb-catalog" aria-label="Catalogo elementi"><div class="pb-dialog-heading"><div><small>DAI FORMA AL CONTENUTO</small><h2>Aggiungi un elemento</h2></div>${button('close','Chiudi catalogo','×')}</div><p class="pb-catalog-context"></p><label class="pb-catalog-search"><span>Cerca elementi</span><input type="search" data-catalog-search placeholder="Titolo, immagine, elenco…" autocomplete="off"></label><p class="pb-catalog-count" role="status"></p><div class="pb-catalog-grid"></div></dialog>`;
   const q = selector => root.querySelector(selector);
   const frame = q('iframe');
   const status = () => {
@@ -28,19 +40,37 @@ export async function mountEditor(root, options) {
     options.onStatus?.({saving, loading, dirty: !!engine?.dirty, loadFailed});
     q('.pb-message').hidden = !error; q('.pb-message').textContent = error;
   };
-  function item(n, depth) {
-    const def = catalog[n.type];
-    const caption = n.type === 'heading' || n.type === 'text' || n.type === 'button' ? n.props.text : n.type === 'area' ? n.props.area : n.type === 'row' ? n.props.layout.map(w=>w.replace('-','/')).join(' + ') : '';
-    return `<div class="pb-tree-item ${selected===n.id?'is-selected':''}" style="--depth:${depth}"><button type="button" class="pb-tree-select" data-select="${n.id}" draggable="${n.type!=='column'}" aria-pressed="${selected===n.id}"><span class="pb-tree-icon">${e(def.icon)}</span><span>${e(def.label)}${caption?`<small>${e(caption)}</small>`:''}</span></button>${n.type==='column'?button(`catalog:${n.id}`,'Aggiungi elemento alla colonna','+') : ''}</div>${(n.children??[]).map(c=>item(c,depth+1)).join('')}`;
-  }
   function tree() {
-    q('.pb-tree').innerHTML = engine ? engine.document.children.map(n=>item(n,0)).join('') || '<p class="pb-empty">La pagina è ancora vuota.<br>Aggiungi la prima struttura con +.</p>' : '<p class="pb-empty">Carica un documento per iniziare.</p>';
+    q('.pb-tree').dataset.view = structureView;
+    q('.pb-tree').innerHTML = engine ? composition(engine.document, catalog, {selected, view:structureView, collapsed}) : '<p class="pb-empty">Carica un documento per iniziare.</p>';
+    root.querySelectorAll('.pb-structure-views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.action === `view:${structureView}`)));
+  }
+  function choose(id, reveal = false) {
+    if (!engine || !locate(engine.document, id)) return;
+    selected = id;
+    selectionPath(engine.document, id).slice(0, -1).forEach(n => collapsed.delete(n.id));
+    tree(); inspector(); highlight(); status();
+    if (reveal) {
+      const element = [...(frame.contentDocument?.querySelectorAll('[data-pb-id]') ?? [])].find(n => n.dataset.pbId === id);
+      element?.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+  }
+  function contextbar() {
+    const found = engine && locate(engine.document, selected);
+    const bar = q('.pb-contextbar');
+    bar.hidden = !found;
+    if (!found) { bar.replaceChildren(); return; }
+    const {node:n, parent, index} = found;
+    const canManage = n.type !== 'column';
+    const addLabel = n.type === 'section' ? 'Aggiungi sezione dopo' : n.type === 'row' ? 'Aggiungi riga dopo' : 'Aggiungi elemento';
+    bar.innerHTML = `<strong>${e(catalog[n.type].icon)} ${e(catalog[n.type].label)}</strong><div class="pb-context-actions">${button('parent','Seleziona contenitore','↑ Contenitore',parent.id ? '' : 'disabled')}${button('add',addLabel,'+ Aggiungi')}${canManage ? `${button('up','Sposta su','↑',index === 0 ? 'disabled' : '')}${button('down','Sposta giù','↓',index === parent.children.length - 1 ? 'disabled' : '')}${button('duplicate','Duplica elemento','⧉ Duplica')}${button('delete','Elimina elemento','×','class="pb-danger"')}` : ''}</div>`;
   }
   function inspector() {
     const n = engine && locate(engine.document,selected)?.node;
+    contextbar();
     if (!n) { q('.pb-inspector').innerHTML = '<div class="pb-inspector-empty"><span>↖</span><h3>Ogni dettaglio, al suo posto.</h3><p>Seleziona un elemento nella struttura o nell’anteprima per modificarlo.</p></div>'; return; }
     const def = catalog[n.type];
-    let content = `<div class="pb-inspector-title"><span>${e(def.icon)}</span><h3>${e(def.label)}</h3></div><div class="pb-tabs" role="group" aria-label="Proprietà">${button('content','Contenuto','Contenuto',`aria-pressed="${propertyTab==='content'}"`)}${button('style','Stile','Stile',`aria-pressed="${propertyTab==='style'}"`)}</div>`;
+    let content = `<nav class="pb-breadcrumbs" aria-label="Percorso dell’elemento">${selectionPath(engine.document,selected).map((part,i,parts)=>`<button type="button" data-jump="${e(part.id)}" ${i === parts.length-1 ? 'aria-current="true"' : ''}>${e(catalog[part.type].label)}</button>`).join('<span aria-hidden="true">›</span>')}</nav><div class="pb-inspector-title"><span>${e(def.icon)}</span><h3>${e(def.label)}</h3></div><div class="pb-tabs" role="group" aria-label="Proprietà">${button('content','Contenuto','Contenuto',`aria-pressed="${propertyTab==='content'}"`)}${button('style','Stile','Stile',`aria-pressed="${propertyTab==='style'}"`)}</div>`;
     if (propertyTab==='content') {
       if (n.type==='row') {
         content += '<label class="pb-field-title">Griglia</label><div class="pb-grid-picker">'+layouts.map((l,i)=>button(`grid:${i}`,l.map(w=>w.replace('-','/')).join(' + '),`<span class="pb-grid-option">${l.map(w=>`<i style="flex:${Number(w.split('-')[0])/Number(w.split('-')[1])}"></i>`).join('')}</span><small>${l.map(w=>w.replace('-','/')).join(' · ')}</small>`,`aria-pressed="${JSON.stringify(l)===JSON.stringify(n.props.layout)}"`)).join('')+'</div><p class="pb-hint">Riducendo le colonne, i contenuti vengono spostati nell’ultima colonna rimasta.</p>';
@@ -87,34 +117,64 @@ export async function mountEditor(root, options) {
         highlight(); frame.contentWindow.scrollTo(0,scroll);
         frame.contentDocument.addEventListener('click',event=>{
           event.preventDefault(); const id = event.target.closest('[data-pb-id]')?.dataset.pbId;
-          if (id && locate(engine.document,id)) { selected=id; tree(); inspector(); highlight(); }
+          if (id && locate(engine.document,id)) choose(id);
         });
       };
       frame.srcdoc = `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https:; style-src http: https: 'unsafe-inline'; font-src http: https:; base-uri 'none'; form-action 'none'">${css.map(url=>`<link rel="stylesheet" href="${e(url)}">`).join('')}<style>body{margin:0;background:white}.pb-node{position:relative;cursor:pointer}.pb-selected{outline:2px solid #347565;outline-offset:3px}.pb-column:empty{min-height:90px;border:1px dashed #b8c9c3}.pb-section:empty{min-height:120px}.pb-image:empty{min-height:100px;background:#f2f4f1}.pb-document:empty{min-height:200px}</style></head><body>${html}</body></html>`;
     } catch (err) { if (err.name!=='AbortError' && seq===sequence) { error=`Anteprima non disponibile: ${err.message}`; status(); } }
   }
-  function refresh(full = true) { notice=''; tree(); if (full) inspector(); status(); preview(); }
+  function refresh(full = true) {
+    notice='';
+    if (selected && !locate(engine.document,selected)) selected=null;
+    selectionPath(engine.document,selected).slice(0,-1).forEach(n=>collapsed.delete(n.id));
+    tree(); if (full) inspector(); else contextbar(); status(); preview();
+  }
   function importDocument(document) {
     if (!engine || loading || saving || loadFailed) throw new Error('Attendi il caricamento del documento prima di importare.');
-    engine.import(document); selected=null; refresh();
+    engine.import(document); selected=null; collapsed.clear(); refresh();
   }
   async function load() {
     loading=true; error=''; status();
     try {
       raw = options.adapter.load ? await options.adapter.load() : clone(options.document);
       const next = new Engine(raw,catalog,styles,{mode,kind:options.kind??null,sources:mode==='template'?options.sources:null,areas:mode==='template'?options.areas:null});
-      engine=next; loadFailed=false; selected=null; refresh();
+      engine=next; loadFailed=false; selected=null; collapsed.clear(); refresh();
     } catch (err) { loadFailed=true; error=`Caricamento non riuscito: ${err.message}. Il documento non è stato sovrascritto.`; }
     finally { loading=false; status(); }
   }
-  function catalogDialog(id) {
-    selected=id; tree(); inspector(); highlight();
-    q('.pb-catalog-grid').innerHTML = Object.entries(catalog).filter(([,d])=>!d.children && (!d.templateOnly || mode==='template')).map(([type,d])=>button(`insert:${type}`,`Aggiungi ${d.label}`,`<span>${e(d.icon)}</span><strong>${e(d.label)}</strong>`)).join('');
-    q('dialog').showModal();
+  function insertNode(parentId, type, afterId = null, props = {}) {
+    const fresh = node(type,catalog,props);
+    engine.change(doc => {
+      const parent = parentId ? locate(doc,parentId)?.node : doc;
+      if (!parent?.children) throw new Error('La destinazione non è più disponibile.');
+      const index = afterId === null ? parent.children.length : parent.children.findIndex(n=>n.id===afterId)+1;
+      if (afterId !== null && index === 0) throw new Error('L’elemento di inserimento non è più disponibile.');
+      parent.children.splice(index,0,fresh);
+    });
+    return fresh.id;
+  }
+  function renderCatalog() {
+    const search = q('[data-catalog-search]').value.trim().toLocaleLowerCase('it');
+    const entries = Object.entries(catalog).filter(([type,d]) => !d.children && (!d.templateOnly || mode==='template') && `${d.label} ${(elementInfo[type]??[]).join(' ')}`.toLocaleLowerCase('it').includes(search));
+    q('.pb-catalog-count').textContent = `${entries.length} ${entries.length === 1 ? 'elemento disponibile' : 'elementi disponibili'}`;
+    q('.pb-catalog-grid').innerHTML = entries.map(([type,d]) => {
+      const [group, description] = elementInfo[type] ?? ['Dal progetto', 'Elemento personalizzato'];
+      return button(`insert:${type}`,`Aggiungi ${d.label}`,`<span class="pb-catalog-icon">${e(d.icon)}</span><small>${e(group)}</small><strong>${e(d.label)}</strong><p>${e(description)}</p>`);
+    }).join('') || '<p class="pb-catalog-empty">Nessun elemento trovato. Prova con un altro nome.</p>';
+  }
+  function catalogDialog(id, afterId = null) {
+    insertion = {parentId:id, afterId};
+    choose(afterId ?? id);
+    const after = afterId && locate(engine.document,afterId)?.node;
+    q('.pb-catalog-context').textContent = after ? `Inserisci dopo: ${caption(after) || catalog[after.type].label}` : 'Inserisci nella colonna selezionata';
+    q('[data-catalog-search]').value=''; renderCatalog();
+    q('dialog').showModal(); q('[data-catalog-search]').focus();
   }
   root.addEventListener('click',async event=>{
     const select=event.target.closest('[data-select]');
-    if (select && engine) { selected=select.dataset.select; tree(); inspector(); highlight(); status(); return; }
+    if (select && engine) { choose(select.dataset.select,true); return; }
+    const jump=event.target.closest('[data-jump]');
+    if (jump && engine) { choose(jump.dataset.jump,true); return; }
     const action=event.target.closest('[data-action]')?.dataset.action;
     if (!action) return;
     try {
@@ -133,6 +193,20 @@ export async function mountEditor(root, options) {
       }
       if (action==='close') { q('dialog').close();return; }
       if (!engine || loading || loadFailed) return;
+      const target=event.target.closest('[data-node-target]')?.dataset.nodeTarget;
+      if (target) selected=target;
+      if (action.startsWith('view:')) { structureView=action.slice(5); tree(); return; }
+      if (action.startsWith('toggle:')) {
+        const id=action.slice(7); collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id); tree(); return;
+      }
+      if (action==='parent') { const parent=locate(engine.document,selected)?.parent; if(parent?.id) choose(parent.id,true); return; }
+      if (action==='add' || action.startsWith('after:')) {
+        const found=locate(engine.document,action==='add'?selected:action.slice(6));
+        if (!found) return;
+        if (found.node.type==='column') { catalogDialog(found.node.id); return; }
+        if (!catalog[found.node.type].children) { catalogDialog(found.parent.id,found.node.id); return; }
+        selected=insertNode(found.parent.id,found.node.type,found.node.id); refresh(); return;
+      }
       if (action==='save') {
         if (saving) return;
         saving=true; const snapshot=clone(engine.document);status();
@@ -142,7 +216,9 @@ export async function mountEditor(root, options) {
       }
       if (action.startsWith('catalog:')) { catalogDialog(action.slice(8));return; }
       if (action.startsWith('insert:')) {
-        selected=engine.add(selected,action.slice(7),action.slice(7)==='area'?{area:options.areas?.[0]??'description'}:{});
+        if (!insertion) return;
+        selected=insertNode(insertion.parentId,action.slice(7),insertion.afterId,action.slice(7)==='area'?{area:options.areas?.[0]??'description'}:{});
+        insertion=null;
         q('dialog').close();
       }
       if (action==='root') selected=engine.add(null,engine.document.kind==='page'?'section':'row');
@@ -192,11 +268,12 @@ export async function mountEditor(root, options) {
     }catch(err){t.setCustomValidity?.(err.message);error=`Il valore non è stato applicato: ${err.message}`;status();}
   }
   root.addEventListener('change',propertyChange,{signal:abort.signal});
-  root.addEventListener('input',event=>{if(event.target.matches('textarea,[data-prop=text],[data-prop=alt]'))propertyChange(event);},{signal:abort.signal});
+  root.addEventListener('input',event=>{if(event.target.matches('[data-catalog-search]')) renderCatalog(); else if(event.target.matches('textarea,[data-prop=text],[data-prop=alt]'))propertyChange(event);},{signal:abort.signal});
   root.addEventListener('dragstart',event=>{dragged=event.target.closest('[data-select]')?.dataset.select; if(dragged)event.dataTransfer.setData('text/plain',dragged);},{signal:abort.signal});
-  root.addEventListener('dragover',event=>{if(event.target.closest('[data-select]'))event.preventDefault();},{signal:abort.signal});
+  root.addEventListener('dragend',()=>{dragged=null;},{signal:abort.signal});
+  root.addEventListener('dragover',event=>{if(event.target.closest('[data-select],[data-drop-parent]'))event.preventDefault();},{signal:abort.signal});
   root.addEventListener('drop',event=>{
-    event.preventDefault();const targetId=event.target.closest('[data-select]')?.dataset.select;
+    event.preventDefault();const targetId=event.target.closest('[data-select]')?.dataset.select ?? event.target.closest('[data-drop-parent]')?.dataset.dropParent;
     if(!dragged||!targetId||dragged===targetId)return;
     try{const from=locate(engine.document,dragged),to=locate(engine.document,targetId);const isParent=catalog[to.node.type].children?.includes(from.node.type);engine.move(dragged,isParent?to.node.id:to.parent.id,isParent?to.node.children.length:to.index);selected=dragged;refresh();}catch(err){error=err.message;status();}finally{dragged=null;}
   },{signal:abort.signal});
