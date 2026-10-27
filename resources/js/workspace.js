@@ -1,6 +1,7 @@
 import {mountEditor} from './editor.js';
 import {clone, safeUrl} from './core.js';
 import {escape as e} from './render.js';
+import {previewStyles, loadVariables, defaultVariablesStyle} from './theme.js';
 
 export function workspaceClient({csrfToken} = {}) {
   return async (url, method = 'GET', body, signal) => {
@@ -18,6 +19,7 @@ export function workspaceClient({csrfToken} = {}) {
 
 /** Record URLs and available media are supplied by the host, never inferred from model names. */
 export async function mountWorkspace(root, options) {
+  loadVariables(root, options);
   const request = workspaceClient(options), abort = new AbortController();
   const records = options.records ?? [];
   if (!records.length) { root.textContent = 'Nessun record modificabile disponibile.'; return {destroy() {}}; }
@@ -85,8 +87,8 @@ export async function mountWorkspace(root, options) {
   }
   function frame(html) {
     const iframe = document.createElement('iframe'); iframe.title = 'Anteprima del contenuto salvato'; iframe.setAttribute('sandbox', '');
-    const css = options.previewStyles ?? [new URL('../vendor/uikit.min.css', import.meta.url).href, new URL('../css/content.css', import.meta.url).href];
-    iframe.srcdoc = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https:; style-src http: https: 'unsafe-inline'; font-src http: https:; base-uri 'none'; form-action 'none'">${css.map(url => `<link rel="stylesheet" href="${e(url)}">`).join('')}</head><body>${html}</body></html>`;
+    const css = previewStyles(options);
+    iframe.srcdoc = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https:; style-src http: https: 'unsafe-inline'; font-src http: https:; base-uri 'none'; form-action 'none'">${css.map(url => `<link rel="stylesheet" href="${e(url)}">`).join('')}${defaultVariablesStyle(options)}</head><body>${html}</body></html>`;
     return iframe;
   }
   async function open() {

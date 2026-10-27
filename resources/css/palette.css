@@ -1,0 +1,57 @@
+/* Default variables have lower priority than the published, unlayered local overrides. */
+@import url("./variables.css") layer(pagebuilder-defaults);
+
+.pb-document { color: var(--pb-context-text, var(--pb-palette-ink)); }
+.pb-document .pb-heading { color: var(--pb-context-heading, var(--pb-palette-emphasis)); }
+.pb-document .pb-heading > :is(h1,h2,h3,h4,h5,h6) { color: inherit; }
+
+/* A background establishes a new text context, including inside a darker parent. */
+.pb-document :is(.uk-background-default,.uk-background-muted,.uk-background-warning) {
+  --pb-context-text: var(--pb-palette-ink);
+  --pb-context-heading: var(--pb-palette-emphasis);
+  --pb-context-muted: var(--pb-palette-muted-ink);
+}
+.pb-document .uk-background-default { background-color: var(--pb-palette-default); }
+.pb-document .uk-background-muted { background-color: var(--pb-palette-muted); }
+.pb-document .uk-background-primary { background-color: var(--pb-palette-primary); --pb-context-text: var(--pb-palette-primary-contrast); }
+.pb-document .uk-background-secondary { background-color: var(--pb-palette-secondary); --pb-context-text: var(--pb-palette-secondary-contrast); }
+.pb-document .uk-background-success { background-color: var(--pb-palette-success); --pb-context-text: var(--pb-palette-success-contrast); }
+.pb-document .uk-background-danger { background-color: var(--pb-palette-danger); --pb-context-text: var(--pb-palette-danger-contrast); }
+.pb-document .uk-background-warning {
+  background-color: var(--pb-palette-warning);
+  --pb-context-text: var(--pb-palette-warning-contrast);
+  --pb-context-heading: var(--pb-palette-warning-contrast);
+  --pb-context-muted: var(--pb-palette-warning-contrast);
+}
+.pb-document :is(.uk-background-primary,.uk-background-secondary,.uk-background-success,.uk-background-danger) {
+  --pb-context-heading: var(--pb-context-text);
+  --pb-context-muted: color-mix(in srgb, var(--pb-context-text) 80%, transparent);
+}
+.pb-document :is(.uk-background-default,.uk-background-muted,.uk-background-primary,.uk-background-secondary,.uk-background-success,.uk-background-warning,.uk-background-danger) { color: var(--pb-context-text); }
+
+.pb-document .pb-color-default { color: var(--pb-context-text, var(--pb-palette-ink)) !important; }
+.pb-document .uk-text-muted { color: var(--pb-context-muted, var(--pb-palette-muted-ink)) !important; }
+.pb-document .uk-text-emphasis { color: var(--pb-context-heading, var(--pb-palette-emphasis)) !important; }
+.pb-document .uk-text-primary { color: var(--pb-palette-primary) !important; }
+.pb-document .uk-text-secondary { color: var(--pb-palette-secondary) !important; }
+.pb-document .uk-text-success { color: var(--pb-palette-success) !important; }
+.pb-document .uk-text-warning { color: var(--pb-palette-warning-ink) !important; }
+.pb-document .uk-text-danger { color: var(--pb-palette-danger) !important; }
+.pb-document .uk-text-inverse { color: var(--pb-palette-inverse) !important; }
+
+.pb-document .pb-button > .uk-button {
+  background-color: var(--pb-button-background, transparent);
+  color: var(--pb-button-color, var(--pb-context-text, var(--pb-palette-emphasis)));
+  border: 1px solid transparent;
+  transition: filter .15s, box-shadow .15s;
+}
+.pb-document .uk-button-primary { --pb-button-background: var(--pb-palette-primary); --pb-button-color: var(--pb-palette-primary-contrast); }
+.pb-document .uk-button-secondary { --pb-button-background: var(--pb-palette-secondary); --pb-button-color: var(--pb-palette-secondary-contrast); }
+.pb-document .uk-button-success { --pb-button-background: var(--pb-palette-success); --pb-button-color: var(--pb-palette-success-contrast); }
+.pb-document .uk-button-warning { --pb-button-background: var(--pb-palette-warning); --pb-button-color: var(--pb-palette-warning-contrast); }
+.pb-document .uk-button-danger { --pb-button-background: var(--pb-palette-danger); --pb-button-color: var(--pb-palette-danger-contrast); }
+.pb-document .pb-button > .uk-button-default { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.pb-document .pb-button > .uk-button-text::before { border-bottom-color: currentColor; }
+.pb-document .pb-button > .uk-button:hover { filter: brightness(.92); }
+.pb-document .pb-button > .uk-button:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.pb-document .pb-button > .uk-button:active { filter: brightness(.85); }

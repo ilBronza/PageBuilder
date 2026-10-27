@@ -1,0 +1,44 @@
+/* PageBuilder palette defaults. Publish with --tag=pagebuilder.variables to customize locally.
+ * Keep only your overrides in the published file; omitted variables inherit package defaults.
+ */
+:root {
+  --pb-space-small: 15px;
+  --pb-space-default: 30px;
+  --pb-space-medium: 40px;
+  --pb-space-large: 70px;
+  --pb-font-family: system-ui, sans-serif;
+  --pb-font-small: .875rem;
+  --pb-font-default: 1rem;
+  --pb-font-large: 1.5rem;
+  --pb-font-xlarge: 2.25rem;
+  --pb-radius-small: 4px;
+  --pb-radius-medium: 12px;
+  --pb-radius-large: 24px;
+  --pb-radius-pill: 999px;
+  --pb-border-thin: 1px;
+  --pb-border-thick: 3px;
+  --pb-border-color: #d9e1dc;
+  --pb-shadow-small: 0 2px 8px #162a1914;
+  --pb-shadow-medium: 0 8px 24px #162a1920;
+  --pb-shadow-large: 0 18px 48px #162a192e;
+  --pb-width-small: 480px;
+  --pb-width-medium: 800px;
+  --pb-width-large: 1200px;
+  --pb-palette-default: #fff;
+  --pb-palette-muted: #eef2eb;
+  --pb-palette-primary: #2e6b57;
+  --pb-palette-secondary: #a94f35;
+  --pb-palette-success: #39733e;
+  --pb-palette-warning: #f0c663;
+  --pb-palette-danger: #b53f52;
+  --pb-palette-inverse: #fff;
+  --pb-palette-ink: #515c56;
+  --pb-palette-emphasis: #293d35;
+  --pb-palette-muted-ink: #67716b;
+  --pb-palette-warning-ink: #805b09;
+  --pb-palette-primary-contrast: #fff;
+  --pb-palette-secondary-contrast: #fff;
+  --pb-palette-success-contrast: #fff;
+  --pb-palette-warning-contrast: #493610;
+  --pb-palette-danger-contrast: #fff;
+}

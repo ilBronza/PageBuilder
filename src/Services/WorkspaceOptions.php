@@ -38,6 +38,9 @@ class WorkspaceOptions
             'recoveryUrl' => Gate::forUser($actor)->allows('pagebuilder.recover', ['list', null]) ? route('pagebuilder.orphans.index') : null,
             'sources' => $contexts->descriptors($context), 'areas' => $contexts->provider($context)->areas(),
             'catalog' => $registry->elements, 'styles' => $registry->styles,
+            'variablesUrl' => app(ThemeAssets::class)->variablesUrl(),
+            'previewStyles' => app(ThemeAssets::class)->previewStyles(),
+            'defaultVariablesUrl' => app(ThemeAssets::class)->assetUrl('css/variables.css'),
         ];
     }
 }

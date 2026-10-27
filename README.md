@@ -13,6 +13,32 @@ Apri **http://127.0.0.1:4173**. Serve Node 20+. Non serve `npm install`. Il serv
 
 La barra di gestione permette di scegliere record e area, creare, duplicare e rinominare template, applicarli al record, importare/esportare JSON e ripristinare una versione dalla cronologia. Il selettore «Modifica» alterna contenuto del record e template condivisi. I record dimostrativi Arco e Tratto hanno dati e aree diversi: modificare e salvare il template modifica entrambi, cambiare il record d’anteprima non salva i suoi valori nel layout. I valori indicati come FileCabinet nel playground sono dati dimostrativi; il vero adattatore PHP è separato e testato sul tipo locale `FormrowText`.
 
+La palette legge i valori da [`resources/css/variables.css`](resources/css/variables.css), separato dalle regole di stile. Il file contiene Primary, Secondary, Successo, Avviso, Pericolo, toni neutri e colori di contrasto. Per personalizzarlo nell’app Laravel:
+
+```sh
+php artisan vendor:publish --tag=pagebuilder.assets --force
+php artisan vendor:publish --tag=pagebuilder.variables
+```
+
+Modifica **`public/vendor/pagebuilder/theme/variables.css`** nel progetto ospitante. Puoi mantenere solo le variabili che vuoi cambiare; quelle omesse ereditano i valori del package. Per esempio:
+
+```css
+:root {
+  --pb-palette-primary: #6844b5;
+  --pb-palette-primary-contrast: #fff;
+  --pb-palette-secondary: #164c70;
+  --pb-palette-secondary-contrast: #fff;
+}
+```
+
+Le view Laravel e `WorkspaceOptions` rilevano automaticamente il file pubblicato: lo stesso URL viene usato per campioni, anteprima dell’editor, anteprima dei template collegati e contenuto pubblico. Non serve configurare gli iframe separatamente. L’URL include una versione basata sul contenuto; dopo aver modificato il file basta ricaricare la pagina. Senza copia locale viene usata la palette del package, senza richieste a file mancanti.
+
+**`pagebuilder.assets --force` non sovrascrive la copia in `theme/`.** Anche ripetere `pagebuilder.variables` senza `--force` la conserva. Usa `--tag=pagebuilder.variables --force` soltanto per ripristinare intenzionalmente i valori originali. Aggiungi la copia locale al controllo versione dell’app. I valori predefiniti sono in un layer CSS con priorità inferiore agli override, anche se il CSS del contenuto viene caricato più tardi.
+
+Per un’integrazione JavaScript diretta passa `variablesUrl` a `mountEditor` o `mountWorkspace`: viene caricato nel documento dell’editor e aggiunto anche a `previewStyles` personalizzati. Nella pagina pubblica senza la view `pagebuilder::content`, includi lo stesso URL dopo `content.css`; in Laravel puoi ottenerlo con `app(\IlBronza\PageBuilder\Services\ThemeAssets::class)->variablesUrl()`. Puoi aggiungere altre variabili CSS al file; per renderle nuovi token selezionabili occorre anche estendere catalogo e schema.
+
+Le view del package versionano CSS e moduli JavaScript in base al contenuto pubblicato. Nelle integrazioni Blade personalizzate includi `@include('pagebuilder::assets')` **prima** degli script `type="module"`: l’import map aggiorna anche le dipendenze del modulo principale. Passa inoltre `previewStyles => $theme->previewStyles()` e `defaultVariablesUrl => $theme->assetUrl('css/variables.css')` nelle opzioni dell’editor, con `$theme = app(\IlBronza\PageBuilder\Services\ThemeAssets::class)`. I default restano in un layer CSS inferiore agli override locali. Dopo `vendor:publish --tag=pagebuilder.assets --force` basta ricaricare la pagina per usare i nuovi file.
+
 ## Compatibilità e test
 
 Verificato su **PHP 8.4.23, Laravel 11.51.0, PHPUnit 11.5.55, Testbench 9, SQLite in memoria, Node 20.19.5**. `composer.json` richiede PHP ^8.2; le dipendenze Illuminate sono fornite dall’app Laravel ospitante. La suite è stata verificata con Laravel 11. Nessuna verifica su MySQL/PostgreSQL o PHP 8.2/8.3 in questa consegna.
@@ -213,7 +239,7 @@ const editor = await mountEditor(document.querySelector('#builder'), {
 // editor.engine, editor.reload(), editor.setPreview(values, areaDocuments), editor.destroy()
 ```
 
-Carica `editor.css`; la libreria carica i descrittori JSON e il CSS di anteprima dal percorso relativo agli asset. Puoi fornire `catalog`, `styles`, `previewStyles`, `sources`, `areas`, `areaLabels`, `values`, `areaDocuments` e `renderers`. Un adapter di persistenza deve salvare lo snapshot passato senza trasformarlo e restituire un errore in caso di conflitto; il salvataggio non è automatico. Errori di caricamento impediscono di salvare sopra un documento non compreso. L’export permette di recuperare il JSON.
+Carica `editor.css`; la libreria carica i descrittori JSON e il CSS di anteprima dal percorso relativo agli asset. Puoi fornire `catalog`, `styles`, `variablesUrl`, `previewStyles`, `sources`, `areas`, `areaLabels`, `values`, `areaDocuments` e `renderers`. Un adapter di persistenza deve salvare lo snapshot passato senza trasformarlo e restituire un errore in caso di conflitto; il salvataggio non è automatico. Errori di caricamento impediscono di salvare sopra un documento non compreso. L’export permette di recuperare il JSON.
 
 ## Integrità e gestione del ciclo di vita
 

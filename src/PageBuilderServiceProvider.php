@@ -4,6 +4,7 @@ namespace IlBronza\PageBuilder;
 
 use IlBronza\PageBuilder\Documents\{Registry, Validator, Renderer};
 use IlBronza\PageBuilder\Http\BuilderController;
+use IlBronza\PageBuilder\Services\ThemeAssets;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,6 +29,9 @@ class PageBuilderServiceProvider extends ServiceProvider
             __DIR__.'/../resources/schema' => public_path('vendor/pagebuilder/schema'),
             __DIR__.'/../resources/vendor' => public_path('vendor/pagebuilder/vendor'),
         ], 'pagebuilder.assets');
+        $this->publishes([
+            __DIR__.'/../resources/css/variables.css' => public_path(ThemeAssets::VARIABLES_PATH),
+        ], 'pagebuilder.variables');
         if (!config('pagebuilder.routes')) return;
         Route::prefix(config('pagebuilder.prefix'))->middleware(config('pagebuilder.middleware'))->name('pagebuilder.')->group(function () {
             Route::get('records/{host}/{record}/edit', [BuilderController::class, 'workspace'])->name('workspace');

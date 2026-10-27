@@ -1,6 +1,7 @@
 import {Engine, clone, layouts, locate, compatible, node} from './core.js';
 import {render, escape as e} from './render.js';
 import {composition, selectionPath, caption} from './composition.js';
+import {previewStyles, loadVariables, defaultVariablesStyle} from './theme.js';
 
 const labels = {width:'Larghezza',text:'Testo',tag:'Tag HTML',size:'Dimensione del titolo',src:'URL immagine pubblica',alt:'Testo alternativo',ratio:'Proporzioni',href:'Collegamento',variant:'Aspetto',items:'Voci (una per riga)',area:'Area del record',background:'Sfondo',padding:'Spaziatura interna',margin:'Margine',align:'Allineamento',color:'Colore',gap:'Distanza colonne',rowGap:'Distanza righe',vertical:'Allineamento verticale'};
 const tokenLabels = {default:'Predefinito',none:'Nessuno',small:'Piccolo',medium:'Medio',large:'Grande',xlarge:'Molto grande','2xlarge':'Extra grande',expand:'Tutta larghezza',muted:'Tenue',primary:'Primary',secondary:'Secondary',left:'Sinistra',center:'Centro',right:'Destra',top:'In alto',middle:'Al centro',bottom:'In basso',collapse:'Nessuna',auto:'Originale',square:'Quadrata',landscape:'Orizzontale',portrait:'Verticale',bullet:'Punti',decimal:'Numeri',divider:'Linee',striped:'Righe alternate',text:'Testo',icon:'Icona'};
@@ -20,7 +21,8 @@ export async function mountEditor(root, options) {
   const base = new URL('../',import.meta.url);
   const [catalog, styles] = await Promise.all([options.catalog ?? fetch(new URL('schema/catalog.json',base)).then(r=>r.json()),options.styles ?? fetch(new URL('schema/styles.json',base)).then(r=>r.json())]);
   const mode = options.mode ?? 'static';
-  const css = options.previewStyles ?? [new URL('vendor/uikit.min.css',base).href,new URL('css/content.css',base).href];
+  const css = previewStyles(options);
+  loadVariables(root, options);
   const abort = new AbortController();
   let loadFailed = false;
   let engine = null, selected = null, saving = false, loading = false, error = '', notice = '', propertyTab = 'content', previewRequest = null, sequence = 0, dragged = null, raw = null, disposed = false;
@@ -120,7 +122,7 @@ export async function mountEditor(root, options) {
           if (id && locate(engine.document,id)) choose(id);
         });
       };
-      frame.srcdoc = `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https:; style-src http: https: 'unsafe-inline'; font-src http: https:; base-uri 'none'; form-action 'none'">${css.map(url=>`<link rel="stylesheet" href="${e(url)}">`).join('')}<style>body{margin:0;background:white}.pb-node{position:relative;cursor:pointer}.pb-selected{outline:2px solid #347565;outline-offset:3px}.pb-column:empty{min-height:90px;border:1px dashed #b8c9c3}.pb-section:empty{min-height:120px}.pb-image:empty{min-height:100px;background:#f2f4f1}.pb-document:empty{min-height:200px}</style></head><body>${html}</body></html>`;
+      frame.srcdoc = `<!doctype html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http: https:; style-src http: https: 'unsafe-inline'; font-src http: https:; base-uri 'none'; form-action 'none'">${css.map(url=>`<link rel="stylesheet" href="${e(url)}">`).join('')}${defaultVariablesStyle(options)}<style>body{margin:0;background:white}.pb-node{position:relative;cursor:pointer}.pb-selected{outline:2px solid #347565;outline-offset:3px}.pb-column:empty{min-height:90px;border:1px dashed #b8c9c3}.pb-section:empty{min-height:120px}.pb-image:empty{min-height:100px;background:#f2f4f1}.pb-document:empty{min-height:200px}</style></head><body>${html}</body></html>`;
     } catch (err) { if (err.name!=='AbortError' && seq===sequence) { error=`Anteprima non disponibile: ${err.message}`; status(); } }
   }
   function refresh(full = true) {
