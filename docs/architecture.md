@@ -64,6 +64,8 @@ Tutte le scritture del builder devono passare dai servizi. Operazioni SQL dirett
 
 Gli elementi standard non accettano HTML, CSS libero, tag arbitrari o JavaScript. Testi e attributi vengono escapati. URL ammessi: http/https, percorso assoluto locale, ancora, mailto/tel; niente data URL, protocol-relative, backslash o caratteri di controllo. L’iframe dell’editor è sandboxed senza script, con CSP, e intercetta i link per selezionare il contenuto.
 
+L’editor di codice mostra l’HTML risultante in sola lettura e permette di applicare il JSON tramite il validator dell’intero documento, in un unico comando annullabile. Il campo CSS avanzato accetta solo proprietà di `design.json`, misure limitate, colori consentiti e riferimenti `var(--nome)`; nessun selettore o regola libera. Le immagini di sfondo ammettono solo URL pubblici http/https o percorsi locali assoluti. Classi e ID HTML seguono un formato ristretto e non permettono attributi aggiuntivi.
+
 L’app sceglie dati, visibilità e sorgenti. Il server non interpreta percorsi o metodi ricevuti dal frontend. Una `Source` è configurata da codice fidato e può includere un predicato di autorizzazione; le collezioni vengono normalizzate a scalari (massimo 200). Valori di sorgenti mancanti o negati diventano vuoti, senza modificare il documento salvato. Cambiare lo schema delle sorgenti può rendere un vecchio binding non valido per un successivo salvataggio: va riparato o ricollegato esplicitamente.
 
 La revisione è un controllo ottimistico su una singola entità, non un sistema editoriale. Un salvataggio riuscito aggiorna il checkpoint dello snapshot inviato; nuove modifiche durante il salvataggio restano dirty. Nessun salvataggio automatico e nessuna propagazione del template prima del commit.

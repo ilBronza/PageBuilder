@@ -13,6 +13,12 @@ Apri **http://127.0.0.1:4173**. Serve Node 20+. Non serve `npm install`. Il serv
 
 La barra di gestione permette di scegliere record e area, creare, duplicare e rinominare template, applicarli al record, importare/esportare JSON e ripristinare una versione dalla cronologia. Il selettore «Modifica» alterna contenuto del record e template condivisi. I record dimostrativi Arco e Tratto hanno dati e aree diversi: modificare e salvare il template modifica entrambi, cambiare il record d’anteprima non salva i suoi valori nel layout. I valori indicati come FileCabinet nel playground sono dati dimostrativi; il vero adattatore PHP è separato e testato sul tipo locale `FormrowText`.
 
+Il pannello sinistro segue il percorso **Builder → elemento → Builder**. La vista Layout rappresenta sezioni, righe e colonne; la vista Albero offre una struttura comprimibile. Selezionare un elemento nel layout o nell’anteprima apre le sue proprietà a tutta altezza: **Contenuto** per testi, immagini e collegamenti, **Impostazioni** per griglia e aspetto, **Avanzate** per spostamento e gestione. «← Builder» torna alla struttura conservando le modifiche. Le schede mostrate dipendono dal tipo di elemento.
+
+Il pulsante + in una colonna apre il catalogo ricercabile; il + tra gli elementi inserisce nel punto scelto. Anche la barra dell’elemento sopra l’anteprima permette di aggiungere subito dopo la selezione. Ogni inserimento si annulla con una sola operazione. I controlli desktop/tablet/mobile e il comando per nascondere il pannello sono fissi in basso a sinistra. Vedi [evoluzione dell’editor](docs/evoluzione-editor.md) per il percorso di sviluppo.
+
+In **Impostazioni**, i campioni colore permettono di scegliere **Primary, Secondary, Successo, Avviso e Pericolo**, oltre a sfondi neutri e colori del testo (tenue, enfasi, bianco). Gli sfondi si applicano a sezioni, colonne, titoli, testi ed elenchi; i pulsanti hanno le stesse varianti semantiche. «Tema globale» rimuove la scelta locale. Lo sfondo imposta automaticamente un testo leggibile; il colore esplicito del testo ha precedenza. Le modifiche sono annullabili e vengono mantenute nel salvataggio.
+
 La palette legge i valori da [`resources/css/variables.css`](resources/css/variables.css), separato dalle regole di stile. Il file contiene Primary, Secondary, Successo, Avviso, Pericolo, toni neutri e colori di contrasto. Per personalizzarlo nell’app Laravel:
 
 ```sh
@@ -241,8 +247,24 @@ const editor = await mountEditor(document.querySelector('#builder'), {
 
 Carica `editor.css`; la libreria carica i descrittori JSON e il CSS di anteprima dal percorso relativo agli asset. Puoi fornire `catalog`, `styles`, `variablesUrl`, `previewStyles`, `sources`, `areas`, `areaLabels`, `values`, `areaDocuments` e `renderers`. Un adapter di persistenza deve salvare lo snapshot passato senza trasformarlo e restituire un errore in caso di conflitto; il salvataggio non è automatico. Errori di caricamento impediscono di salvare sopra un documento non compreso. L’export permette di recuperare il JSON.
 
+## Stili, responsive e codice
+
+Il pannello **Impostazioni** raggruppa layout, tipografia, sfondo, spaziature, bordi e ombre. I preset usano le variabili pubblicabili di `variables.css`, ora estese a misure, font, bordi e ombre. Nei gruppi personalizzati puoi indicare misure come `24px`, `1.5rem` o `var(--pb-space-small)`, anche separatamente per ciascun lato, e un’immagine di sfondo pubblica. Per un font locale imposta una variabile (es. `--brand-font`) nel tema e usa `var(--brand-font)`.
+
+**Base** vale per tutti i dispositivi; **Tablet** applica override fino a 1199 px; **Mobile** fino a 639 px ed eredita anche Tablet. Le selezioni di colore/stile senza valore ereditano. Il controllo visibilità ha Eredita/Mostra/Nascondi. Le righe possono avere larghezze responsive senza cambiare numero o contenuto delle colonne. Se cambi la struttura di base, vengono eliminate solo le larghezze responsive non più compatibili. Le anteprime usano viewport reali da 1280/820/390 px, ridotte visivamente quando lo spazio è insufficiente.
+
+In **Avanzate** trovi nome nel builder, disattivazione, ID HTML univoco e classi CSS del progetto (nomi alfanumerici con trattini/underscore, separati da spazi). Copia/incolla stili include i valori responsive, preservando contenuti e identità. La duplicazione genera nuovi ID interni e rimuove gli ID HTML per evitare duplicati. I comandi sull’anteprima e l’evidenziazione al passaggio del mouse sono strumenti dell’editor e non entrano nell’HTML pubblico.
+
+Il campo **CSS controllato** modifica le stesse proprietà dei controlli visuali per il dispositivo selezionato. Sono accettate solo le proprietà in `resources/schema/design.json`: non consente selettori, JavaScript o dichiarazioni arbitrarie. Le classi possono usare gli stili definiti nel tema locale.
+
+**Codice** mostra l’HTML effettivo dell’anteprima, copiabile e in sola lettura. La scheda **Documento JSON** è modificabile: Applica valida struttura, sorgenti, stili e collegamenti prima di sostituire il documento; l’operazione è annullabile e richiede poi Salva. Per modificare il markup dei componenti usa un elemento personalizzato registrato nel package/progetto.
+
+Nel blocco Testo, **Testo formattato** attiva grassetto, corsivo, link ed elenchi. Le variabili sono etichette non modificabili al loro interno. Il contenuto incollato viene convertito in una struttura di paragrafi e segmenti, scartando HTML e attributi non supportati. Puoi tornare al testo semplice. Il catalogo include anche Card, Icona, Tabella (con editor di righe/colonne) e Immagine e testo. Sono elementi statici o con campi dinamici singoli; non introducono ripetitori di record.
+
+Il formato resta versione 1 con campi aggiuntivi opzionali `meta`, `design`, `responsive` e `props.richText`. I documenti precedenti sono leggibili senza conversione; aggiorna package PHP e tutti gli asset insieme prima di salvare nuovi documenti. Le versioni precedenti del package non leggono i nuovi campi. Nessuna migration aggiuntiva.
+
 ## Integrità e gestione del ciclo di vita
 
 Vedi [architettura e schema](docs/architecture.md) per esclusività, documenti orfani, frammenti, estensioni e formato JSON. Le colonne sono gestite dalla griglia: riducendole, gli elementi delle colonne rimosse vengono aggiunti in ordine all’ultima rimasta. Gli ID degli elementi si conservano. Le impostazioni delle colonne rimosse sono recuperabili con Annulla, non vengono fuse in modo ambiguo.
 
-Il package non offre pubblicazione editoriale, import YOOtheme, rich text HTML, approvazioni editoriali, ripetitori complessi, collaborazione simultanea o gestione completa del tema/media. Il campo testo è testo semplice con a capo; tutto viene escapato. Il controllo `revision` rileva i conflitti; la tabella separata `pagebuilder_revisions` conserva le versioni salvate. Non esiste un flusso editoriale di approvazione o pubblicazione differita.
+Il package non offre pubblicazione editoriale, import YOOtheme, HTML libero, approvazioni editoriali, ripetitori complessi, collaborazione simultanea o gestione completa del tema/media. Il blocco Testo supporta testo semplice e formattazione strutturata (grassetto, corsivo, link ed elenchi); contenuti e valori dinamici vengono escapati. Il controllo `revision` rileva i conflitti; la tabella separata `pagebuilder_revisions` conserva le versioni salvate. Non esiste un flusso editoriale di approvazione o pubblicazione differita.
