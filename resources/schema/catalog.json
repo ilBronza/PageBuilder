@@ -1,12 +1,498 @@
 {
-  "section": {"label":"Sezione","icon":"▤","props":{"width":{"kind":"enum","values":["small","default","large","expand"],"default":"default"}},"styles":["background","padding","margin","align"],"children":["row"]},
-  "row": {"label":"Riga","icon":"▥","props":{"layout":{"kind":"layout","default":["1-1"]}},"styles":["gap","rowGap","vertical","margin"],"children":["column"]},
-  "column": {"label":"Colonna","icon":"▯","props":{},"styles":["background","padding","align","vertical"],"children":["heading","text","image","button","divider","list","area"]},
-  "heading": {"label":"Titolo","icon":"H","props":{"text":{"kind":"string","default":"Un nuovo titolo","binding":"text"},"tag":{"kind":"enum","values":["h1","h2","h3","h4","h5","h6"],"default":"h2"},"size":{"kind":"enum","values":["default","small","medium","large","xlarge","2xlarge"],"default":"medium"}},"styles":["align","color","margin","padding"]},
-  "text": {"label":"Testo","icon":"¶","props":{"text":{"kind":"string","default":"Racconta qualcosa di interessante.","binding":"text"}},"styles":["align","color","margin","padding"]},
-  "image": {"label":"Immagine","icon":"▧","props":{"src":{"kind":"url","default":"","binding":"image"},"alt":{"kind":"string","default":"","binding":"text"},"ratio":{"kind":"enum","values":["auto","square","landscape","portrait"],"default":"auto"}},"styles":["margin","padding"]},
-  "button": {"label":"Pulsante","icon":"↗","props":{"text":{"kind":"string","default":"Scopri di più","binding":"text"},"href":{"kind":"url","default":"#","binding":"url"},"variant":{"kind":"enum","values":["default","primary","secondary","text"],"default":"primary"}},"styles":["align","margin","padding"]},
-  "divider": {"label":"Separatore","icon":"—","props":{"variant":{"kind":"enum","values":["default","small","icon"],"default":"default"}},"styles":["margin","padding"]},
-  "list": {"label":"Elenco","icon":"☷","props":{"items":{"kind":"list","default":["Primo dettaglio","Secondo dettaglio"],"binding":"list"},"variant":{"kind":"enum","values":["bullet","decimal","divider","striped"],"default":"bullet"}},"styles":["align","color","margin","padding"]},
-  "area": {"label":"Area libera","icon":"⊞","templateOnly":true,"props":{"area":{"kind":"identifier","default":"description"}},"styles":["margin","padding"]}
+  "section": {
+    "label": "Sezione",
+    "icon": "▤",
+    "props": {
+      "width": {
+        "kind": "enum",
+        "values": [
+          "small",
+          "default",
+          "large",
+          "expand"
+        ],
+        "default": "default"
+      }
+    },
+    "styles": [
+      "background",
+      "padding",
+      "margin",
+      "align",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ],
+    "children": [
+      "row"
+    ]
+  },
+  "row": {
+    "label": "Riga",
+    "icon": "▥",
+    "props": {
+      "layout": {
+        "kind": "layout",
+        "default": [
+          "1-1"
+        ]
+      }
+    },
+    "styles": [
+      "gap",
+      "rowGap",
+      "vertical",
+      "margin",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ],
+    "children": [
+      "column"
+    ]
+  },
+  "column": {
+    "label": "Colonna",
+    "icon": "▯",
+    "props": {},
+    "styles": [
+      "background",
+      "padding",
+      "align",
+      "vertical",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ],
+    "children": [
+      "heading",
+      "text",
+      "image",
+      "button",
+      "divider",
+      "list",
+      "area",
+      "card",
+      "icon",
+      "table",
+      "imageText"
+    ]
+  },
+  "heading": {
+    "label": "Titolo",
+    "icon": "H",
+    "props": {
+      "text": {
+        "kind": "string",
+        "default": "Un nuovo titolo",
+        "binding": "text"
+      },
+      "tag": {
+        "kind": "enum",
+        "values": [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6"
+        ],
+        "default": "h2"
+      },
+      "size": {
+        "kind": "enum",
+        "values": [
+          "default",
+          "small",
+          "medium",
+          "large",
+          "xlarge",
+          "2xlarge"
+        ],
+        "default": "medium"
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "text": {
+    "label": "Testo",
+    "icon": "¶",
+    "props": {
+      "text": {
+        "kind": "string",
+        "default": "Racconta qualcosa di interessante.",
+        "binding": "text"
+      },
+      "richText": {
+        "kind": "richtext",
+        "default": []
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "image": {
+    "label": "Immagine",
+    "icon": "▧",
+    "props": {
+      "src": {
+        "kind": "url",
+        "default": "",
+        "binding": "image"
+      },
+      "alt": {
+        "kind": "string",
+        "default": "",
+        "binding": "text"
+      },
+      "ratio": {
+        "kind": "enum",
+        "values": [
+          "auto",
+          "square",
+          "landscape",
+          "portrait"
+        ],
+        "default": "auto"
+      }
+    },
+    "styles": [
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "button": {
+    "label": "Pulsante",
+    "icon": "↗",
+    "props": {
+      "text": {
+        "kind": "string",
+        "default": "Scopri di più",
+        "binding": "text"
+      },
+      "href": {
+        "kind": "url",
+        "default": "#",
+        "binding": "url"
+      },
+      "variant": {
+        "kind": "enum",
+        "values": [
+          "default",
+          "primary",
+          "secondary",
+          "success",
+          "warning",
+          "danger",
+          "text"
+        ],
+        "default": "primary"
+      }
+    },
+    "styles": [
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "divider": {
+    "label": "Separatore",
+    "icon": "—",
+    "props": {
+      "variant": {
+        "kind": "enum",
+        "values": [
+          "default",
+          "small",
+          "icon"
+        ],
+        "default": "default"
+      }
+    },
+    "styles": [
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "list": {
+    "label": "Elenco",
+    "icon": "☷",
+    "props": {
+      "items": {
+        "kind": "list",
+        "default": [
+          "Primo dettaglio",
+          "Secondo dettaglio"
+        ],
+        "binding": "list"
+      },
+      "variant": {
+        "kind": "enum",
+        "values": [
+          "bullet",
+          "decimal",
+          "divider",
+          "striped"
+        ],
+        "default": "bullet"
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "area": {
+    "label": "Area libera",
+    "icon": "⊞",
+    "templateOnly": true,
+    "props": {
+      "area": {
+        "kind": "identifier",
+        "default": "description"
+      }
+    },
+    "styles": [
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "card": {
+    "label": "Card",
+    "icon": "▣",
+    "props": {
+      "title": {
+        "kind": "string",
+        "default": "Una nuova card",
+        "binding": "text"
+      },
+      "text": {
+        "kind": "string",
+        "default": "Descrivi il contenuto della card.",
+        "binding": "text"
+      },
+      "src": {
+        "kind": "url",
+        "default": "",
+        "binding": "image"
+      },
+      "alt": {
+        "kind": "string",
+        "default": "",
+        "binding": "text"
+      },
+      "href": {
+        "kind": "url",
+        "default": "",
+        "binding": "url"
+      },
+      "linkText": {
+        "kind": "string",
+        "default": "Scopri di più",
+        "binding": "text"
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "icon": {
+    "label": "Icona",
+    "icon": "☆",
+    "props": {
+      "icon": {
+        "kind": "enum",
+        "values": [
+          "star",
+          "check",
+          "heart",
+          "info",
+          "calendar",
+          "location",
+          "mail",
+          "phone"
+        ],
+        "default": "star"
+      },
+      "label": {
+        "kind": "string",
+        "default": "",
+        "binding": "text"
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "table": {
+    "label": "Tabella",
+    "icon": "▦",
+    "props": {
+      "columns": {
+        "kind": "list",
+        "default": [
+          "Voce",
+          "Dettaglio"
+        ]
+      },
+      "rows": {
+        "kind": "table",
+        "default": [
+          [
+            "Prima voce",
+            "Descrizione"
+          ],
+          [
+            "Seconda voce",
+            "Descrizione"
+          ]
+        ]
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  },
+  "imageText": {
+    "label": "Immagine e testo",
+    "icon": "▧",
+    "props": {
+      "title": {
+        "kind": "string",
+        "default": "Immagine e testo",
+        "binding": "text"
+      },
+      "text": {
+        "kind": "string",
+        "default": "Un’immagine accompagnata dal suo contenuto.",
+        "binding": "text"
+      },
+      "src": {
+        "kind": "url",
+        "default": "",
+        "binding": "image"
+      },
+      "alt": {
+        "kind": "string",
+        "default": "",
+        "binding": "text"
+      },
+      "position": {
+        "kind": "enum",
+        "values": [
+          "left",
+          "right"
+        ],
+        "default": "left"
+      }
+    },
+    "styles": [
+      "background",
+      "color",
+      "align",
+      "margin",
+      "padding",
+      "fontSize",
+      "fontWeight",
+      "radius",
+      "border",
+      "shadow",
+      "maxWidth"
+    ]
+  }
 }

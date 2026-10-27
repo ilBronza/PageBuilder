@@ -1,0 +1,104 @@
+{
+  "paddingTop": [
+    "Padding superiore",
+    "length"
+  ],
+  "paddingRight": [
+    "Padding destro",
+    "length"
+  ],
+  "paddingBottom": [
+    "Padding inferiore",
+    "length"
+  ],
+  "paddingLeft": [
+    "Padding sinistro",
+    "length"
+  ],
+  "marginTop": [
+    "Margine superiore",
+    "spacing"
+  ],
+  "marginRight": [
+    "Margine destro",
+    "spacing"
+  ],
+  "marginBottom": [
+    "Margine inferiore",
+    "spacing"
+  ],
+  "marginLeft": [
+    "Margine sinistro",
+    "spacing"
+  ],
+  "maxWidth": [
+    "Larghezza massima",
+    "size"
+  ],
+  "minHeight": [
+    "Altezza minima",
+    "length"
+  ],
+  "fontSize": [
+    "Dimensione testo",
+    "length"
+  ],
+  "lineHeight": [
+    "Interlinea",
+    "number"
+  ],
+  "letterSpacing": [
+    "Spaziatura lettere",
+    "spacing"
+  ],
+  "fontFamily": [
+    "Font",
+    "font"
+  ],
+  "borderWidth": [
+    "Spessore bordo",
+    "length"
+  ],
+  "borderRadius": [
+    "Raggio bordo",
+    "length"
+  ],
+  "borderColor": [
+    "Colore bordo",
+    "color"
+  ],
+  "borderStyle": [
+    "Tipo bordo",
+    "enum",
+    [
+      "none",
+      "solid",
+      "dashed",
+      "dotted"
+    ]
+  ],
+  "backgroundImage": [
+    "Immagine di sfondo",
+    "image"
+  ],
+  "backgroundSize": [
+    "Dimensione sfondo",
+    "enum",
+    [
+      "cover",
+      "contain",
+      "auto"
+    ]
+  ],
+  "backgroundPosition": [
+    "Posizione sfondo",
+    "enum",
+    [
+      "center",
+      "top",
+      "bottom",
+      "left",
+      "right"
+    ]
+  ]
+}

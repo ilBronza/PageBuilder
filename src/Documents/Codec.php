@@ -12,7 +12,10 @@ final class Codec
         $result = [];
         foreach ($value as $key => $item) {
             $item = self::wire($item);
-            $result[$key] = in_array($key, ['props','bindings'], true) || ($key === 'styles' && isset($value['id'], $value['type'])) ? (object) $item : $item;
+            // Catalog definitions use a list of allowed style keys; nodes and
+            // responsive overrides use a map of selected style values.
+            $styleMap = $key === 'styles' && !(isset($value['label'], $value['props']) && !isset($value['id']));
+            $result[$key] = in_array($key, ['props','bindings','meta','design','responsive','tablet','mobile'], true) || $styleMap ? (object) $item : $item;
         }
         return $result;
     }

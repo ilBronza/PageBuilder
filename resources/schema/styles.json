@@ -1,10 +1,94 @@
 {
-  "background":["default","muted","primary","secondary"],
-  "padding":["none","small","default","large"],
-  "margin":["none","small","default","medium","large"],
-  "align":["left","center","right"],
-  "color":["default","muted","primary","secondary"],
-  "gap":["collapse","small","medium","default","large"],
-  "rowGap":["collapse","small","medium","default","large"],
-  "vertical":["top","middle","bottom"]
+  "background": [
+    "default",
+    "muted",
+    "primary",
+    "secondary",
+    "success",
+    "warning",
+    "danger"
+  ],
+  "padding": [
+    "none",
+    "small",
+    "default",
+    "large"
+  ],
+  "margin": [
+    "none",
+    "small",
+    "default",
+    "medium",
+    "large"
+  ],
+  "align": [
+    "left",
+    "center",
+    "right"
+  ],
+  "color": [
+    "default",
+    "muted",
+    "emphasis",
+    "primary",
+    "secondary",
+    "success",
+    "warning",
+    "danger",
+    "inverse"
+  ],
+  "gap": [
+    "collapse",
+    "small",
+    "medium",
+    "default",
+    "large"
+  ],
+  "rowGap": [
+    "collapse",
+    "small",
+    "medium",
+    "default",
+    "large"
+  ],
+  "vertical": [
+    "top",
+    "middle",
+    "bottom"
+  ],
+  "fontSize": [
+    "small",
+    "default",
+    "large",
+    "xlarge"
+  ],
+  "fontWeight": [
+    "normal",
+    "medium",
+    "bold"
+  ],
+  "radius": [
+    "none",
+    "small",
+    "medium",
+    "large",
+    "pill"
+  ],
+  "border": [
+    "none",
+    "thin",
+    "thick"
+  ],
+  "shadow": [
+    "none",
+    "small",
+    "medium",
+    "large"
+  ],
+  "maxWidth": [
+    "none",
+    "small",
+    "medium",
+    "large"
+  ]
 }

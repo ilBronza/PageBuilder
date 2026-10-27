@@ -16,13 +16,13 @@ class Validator
         $this->check(in_array($document['kind'] ?? '', ['page','fragment'], true), 'Invalid document kind');
         $this->check($kind === null || $kind === $document['kind'], 'Document cannot be inserted here');
         $this->check(strlen(json_encode($document, JSON_THROW_ON_ERROR)) <= 1048576, 'Document exceeds 1 MB');
-        $ids = [];
-        $walk = function ($nodes, $allowed, $depth) use (&$walk, &$ids, $mode, $sources, $areas) {
+        $ids = []; $anchors = [];
+        $walk = function ($nodes, $allowed, $depth) use (&$walk, &$ids, &$anchors, $mode, $sources, $areas) {
             $this->check(is_array($nodes) && array_is_list($nodes), 'Children must be a list');
             $this->check($depth <= 8, 'Document is too deep');
             foreach ($nodes as $node) {
                 $this->check(is_array($node), 'Invalid node');
-                $this->keys($node, ['id','type','props','styles','bindings','children']);
+                $this->keys($node, ['id','type','props','styles','bindings','children','meta','design','responsive']);
                 $id = $node['id'] ?? null;
                 $this->check(is_string($id) && preg_match('/^[a-zA-Z0-9_-]{1,80}$/D', $id) && !isset($ids[$id]), 'Invalid or duplicate node ID');
                 $ids[$id] = true;
@@ -34,13 +34,42 @@ class Validator
                 foreach (['props','styles','bindings'] as $key) {
                     $this->check(isset($node[$key]) && is_array($node[$key]), 'Missing '.$key);
                 }
+                if (array_key_exists('meta', $node)) {
+                    $this->check(is_array($node['meta']), 'Invalid metadata');
+                    $this->keys($node['meta'], ['name','anchor','classes','disabled']);
+                    $m = $node['meta'];
+                    if (array_key_exists('name', $m)) $this->check(is_string($m['name']) && strlen($m['name']) <= 120, 'Invalid name');
+                    if (array_key_exists('disabled', $m)) $this->check(is_bool($m['disabled']), 'Invalid status');
+                    if (array_key_exists('classes', $m)) $this->check(is_string($m['classes']) && strlen($m['classes']) <= 500 && preg_match('/^(?:[a-zA-Z_][a-zA-Z0-9_-]*(?: +[a-zA-Z_][a-zA-Z0-9_-]*)*)?$/D', $m['classes']), 'Invalid CSS classes');
+                    if (array_key_exists('anchor', $m)) {
+                        $this->check(is_string($m['anchor']), 'Invalid HTML ID');
+                        if ($m['anchor'] !== '') { $this->check(preg_match('/^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/D', $m['anchor']) && !isset($anchors[$m['anchor']]), 'Invalid or duplicate HTML ID'); $anchors[$m['anchor']] = true; }
+                    }
+                }
+                if (array_key_exists('design', $node)) $this->design($node['design']);
+                if (array_key_exists('responsive', $node)) {
+                    $this->check(is_array($node['responsive']), 'Invalid responsive settings');
+                    $this->keys($node['responsive'], ['tablet','mobile']);
+                    foreach ($node['responsive'] as $r) {
+                        $this->check(is_array($r), 'Invalid breakpoint'); $this->keys($r, ['styles','design','columns','hidden']);
+                        if (array_key_exists('styles', $r)) {
+                            $this->check(is_array($r['styles']), 'Invalid styles'); $this->keys($r['styles'], $def['styles']);
+                            foreach ($r['styles'] as $k=>$v) $this->check(in_array($v, $this->registry->styles[$k] ?? [], true), 'Invalid responsive style');
+                        }
+                        if (array_key_exists('design', $r)) $this->design($r['design']);
+                        if (array_key_exists('hidden', $r)) $this->check(is_bool($r['hidden']), 'Invalid visibility');
+                        if (array_key_exists('columns', $r)) $this->check($type === 'row' && is_array($r['columns']) && array_is_list($r['columns']) && count($r['columns']) === count($node['children'] ?? []) && !array_filter($r['columns'], fn ($w) => !in_array($w, ['1-1','1-2','1-3','2-3','1-4','3-4'], true)), 'Invalid responsive columns');
+                    }
+                }
                 $this->keys($node['props'], array_keys($def['props']));
                 foreach ($node['props'] as $key => $value) {
                     $spec = $def['props'][$key];
                     $this->property($value, $spec);
+                    if ($spec['kind'] === 'richtext') $this->check(RichText::valid($value, $mode, $sources), 'Invalid rich text');
                     if ($mode === 'template' && !isset($node['bindings'][$key])) {
                         if (($spec['binding'] ?? '') === 'text') InlineVariables::validate($value, $sources);
                         if ($spec['kind'] === 'list') foreach ($value as $item) InlineVariables::validate($item, $sources);
+                        if ($spec['kind'] === 'table') foreach ($value as $row) foreach ($row as $cell) InlineVariables::validate($cell, $sources);
                     }
                 }
                 $this->keys($node['styles'], $def['styles']);
@@ -55,6 +84,7 @@ class Validator
                         $this->check($descriptor !== null && self::compatible($def['props'][$key]['binding'], $descriptor), 'Unavailable or incompatible source');
                     }
                 }
+                if ($type === 'table') { $columns = $node['props']['columns'] ?? $def['props']['columns']['default']; $rows = $node['props']['rows'] ?? $def['props']['rows']['default']; $this->check(count($columns) >= 1 && count($columns) <= 12 && !array_filter($rows, fn ($r) => count($r) !== count($columns)), 'Table dimensions do not match'); }
                 if ($type === 'area' && $areas !== null) $this->check(in_array($node['props']['area'] ?? 'description', $areas, true), 'Unknown area');
                 if (isset($def['children'])) {
                     $walk($node['children'] ?? null, $def['children'], $depth + 1);
@@ -82,6 +112,8 @@ class Validator
             'enum' => in_array($value, $spec['values'], true),
             'layout' => in_array($value, self::LAYOUTS, true),
             'list' => is_array($value) && array_is_list($value) && count($value) <= 200 && count(array_filter($value, fn ($v) => is_string($v) && strlen($v) <= 10000)) === count($value),
+            'richtext' => RichText::valid($value),
+            'table' => is_array($value) && array_is_list($value) && count($value) <= 100 && !array_filter($value, fn ($row) => !is_array($row) || !array_is_list($row) || count($row) > 12 || array_filter($row, fn ($cell) => !is_string($cell) || strlen($cell) > 10000)),
             'identifier' => is_string($value) && preg_match('/^[a-zA-Z0-9_-]{1,80}$/D', $value),
             'url' => is_string($value) && strlen($value) <= 2048 && self::safeUrl($value) === $value,
             'string' => is_string($value) && strlen($value) <= 20000,
@@ -94,6 +126,12 @@ class Validator
     {
         if (!is_string($value) || preg_match('/[\x00-\x20\x7f\\\\]/', $value)) return '';
         return $value === '' || preg_match('~^(https?://[^/]+|/(?!/)|#|mailto:|tel:)~i', $value) ? $value : '';
+    }
+
+    private function design(mixed $value): void
+    {
+        $this->check(is_array($value), 'Invalid CSS styles');
+        foreach ($value as $key => $item) $this->check(is_string($key) && Design::valid($key, $item), 'Invalid CSS declaration');
     }
 
     private function keys(array $value, array $allowed): void

@@ -1,3 +1,4 @@
+import {validDesign} from './design.js';
 export const layouts = [['1-1'], ['1-2','1-2'], ['1-3','2-3'], ['2-3','1-3'], ['1-4','3-4'], ['3-4','1-4'], ['1-3','1-3','1-3'], ['1-4','1-4','1-4','1-4']];
 export const clone = value => structuredClone(value);
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -31,23 +32,45 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
   assert(document.version === 1, 'Versione documento non supportata');
   assert(['page','fragment'].includes(document.kind) && (!kind || kind === document.kind), 'Tipo documento non compatibile');
   assert(bytes(JSON.stringify(document)) <= 1048576, 'Documento oltre 1 MB');
-  const ids = new Set();
+  const ids = new Set(), anchors = new Set();
+  const design = value => {keys(value,Object.keys(value));for(const [k,v] of Object.entries(value)) assert(validDesign(k,v,safeUrl),`Stile CSS non valido: ${k}`);};
   function walk(nodes, allowed, depth) {
     assert(Array.isArray(nodes) && depth <= 8, 'Struttura non valida');
     for (const n of nodes) {
-      keys(n, ['id','type','props','styles','bindings','children']);
+      keys(n, ['id','type','props','styles','bindings','children','meta','design','responsive']);
       assert(typeof n.id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(n.id) && !ids.has(n.id), 'Identificativo non valido o duplicato');
       ids.add(n.id); assert(ids.size <= 500, 'Troppi elementi');
       assert(allowed.includes(n.type) && Object.hasOwn(catalog, n.type), 'Posizione o elemento non valido');
       const def = catalog[n.type];
       assert(!def.templateOnly || mode === 'template', 'Elemento disponibile solo nei template');
       keys(n.props, Object.keys(def.props)); keys(n.styles, def.styles);
+      if(n.meta!==undefined) {
+        keys(n.meta,['name','anchor','classes','disabled']);
+        if(n.meta.name!==undefined) assert(typeof n.meta.name==='string'&&bytes(n.meta.name)<=120,'Nome non valido');
+        if(n.meta.disabled!==undefined) assert(typeof n.meta.disabled==='boolean','Stato non valido');
+        if(n.meta.classes!==undefined) assert(typeof n.meta.classes==='string'&&n.meta.classes.length<=500&&/^(?:[a-zA-Z_][a-zA-Z0-9_-]*(?: +[a-zA-Z_][a-zA-Z0-9_-]*)*)?$/.test(n.meta.classes),'Classi CSS non valide');
+        if(n.meta.anchor) {assert(typeof n.meta.anchor==='string'&&/^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/.test(n.meta.anchor)&&!anchors.has(n.meta.anchor),'ID HTML non valido o duplicato');anchors.add(n.meta.anchor);}
+        else if(n.meta.anchor!==undefined) assert(n.meta.anchor==='','ID HTML non valido');
+      }
+      if(n.design!==undefined) design(n.design);
+      if(n.responsive!==undefined) {
+        keys(n.responsive,['tablet','mobile']);
+        for(const r of Object.values(n.responsive)) {
+          keys(r,['styles','design','columns','hidden']);
+          if(r.styles!==undefined) {keys(r.styles,def.styles);for(const [k,v] of Object.entries(r.styles)) assert(styles[k]?.includes(v),'Stile responsive non valido');}
+          if(r.design!==undefined) design(r.design);
+          if(r.hidden!==undefined) assert(typeof r.hidden==='boolean','Visibilità non valida');
+          if(r.columns!==undefined) assert(n.type==='row'&&Array.isArray(r.columns)&&r.columns.length===n.children?.length&&r.columns.every(w=>['1-1','1-2','1-3','2-3','1-4','3-4'].includes(w)),'Colonne responsive non valide');
+        }
+      }
       keys(n.bindings, Object.keys(def.props).filter(k => def.props[k].binding));
       for (const [key, value] of Object.entries(n.props)) {
         const spec = def.props[key];
         const valid = spec.kind === 'enum' ? spec.values.includes(value)
           : spec.kind === 'layout' ? layouts.some(l => JSON.stringify(l) === JSON.stringify(value))
           : spec.kind === 'list' ? Array.isArray(value) && value.length <= 200 && value.every(v => typeof v === 'string' && bytes(v) <= 10000)
+          : spec.kind === 'richtext' ? validRich(value,mode,sources)
+          : spec.kind === 'table' ? Array.isArray(value)&&value.length<=100&&value.every(row=>Array.isArray(row)&&row.length<=12&&row.every(v=>typeof v==='string'&&bytes(v)<=10000))
           : spec.kind === 'identifier' ? typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value)
           : spec.kind === 'url' ? typeof value === 'string' && bytes(value) <= 2048 && safeUrl(value) === value
           : spec.kind === 'string' && typeof value === 'string' && bytes(value) <= 20000;
@@ -55,6 +78,7 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
         if (mode === 'template' && !Object.hasOwn(n.bindings,key)) {
           if (spec.binding === 'text') validateInline(value,sources);
           if (spec.kind === 'list') value.forEach(item => validateInline(item,sources));
+          if (spec.kind === 'table') value.flat().forEach(item => validateInline(item,sources));
         }
       }
       for (const [key, value] of Object.entries(n.styles)) assert(styles[key]?.includes(value), 'Stile non valido');
@@ -62,6 +86,7 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
         assert(mode === 'template' && typeof source === 'string' && /^[a-zA-Z0-9_.:-]{1,120}$/.test(source), 'Sorgente non valida');
         if (sources) assert(Object.hasOwn(sources, source) && compatible(def.props[key].binding, sources[source]), 'Sorgente non disponibile o incompatibile');
       }
+      if (n.type==='table') assert((n.props.columns??def.props.columns.default).length>=1&&(n.props.columns??def.props.columns.default).length<=12&&(n.props.rows??def.props.rows.default).every(row=>row.length===(n.props.columns??def.props.columns.default).length),'Celle non coerenti con le colonne');
       if (n.type === 'area' && areas) assert(areas.includes(n.props.area ?? 'description'), 'Area non disponibile');
       if (def.children) {
         walk(n.children, def.children, depth + 1);
@@ -71,6 +96,22 @@ export function validate(document, catalog, styles, {mode = 'static', kind = nul
   }
   walk(document.children, document.kind === 'page' ? ['section'] : ['row'], 0);
   return document;
+}
+function validRich(value,mode,sources) {
+  if(!Array.isArray(value)||value.length>200) return false;
+  let count=0;
+  for(const block of value) {
+    keys(block,['type','children']);
+    if(!['paragraph','bullet','ordered'].includes(block.type)||!Array.isArray(block.children)) return false;
+    for(const run of block.children) {
+      keys(run,['text','marks','href']);
+      if(++count>2000||typeof run.text!=='string'||bytes(run.text)>20000) return false;
+      if(run.marks!==undefined&&(!Array.isArray(run.marks)||run.marks.length>2||new Set(run.marks).size!==run.marks.length||!run.marks.every(m=>['bold','italic'].includes(m)))) return false;
+      if(run.href!==undefined&&(typeof run.href!=='string'||run.href.length>2048||safeUrl(run.href)!==run.href)) return false;
+      if(mode==='template') validateInline(run.text,sources);
+    }
+  }
+  return true;
 }
 function nodeId() {
   if (typeof crypto.randomUUID === 'function') return `n_${crypto.randomUUID().replaceAll('-', '')}`;
@@ -126,8 +167,19 @@ export class Engine {
   undo() { if (this.past.length) { this.future.push(this.document); this.document = this.past.pop(); } }
   redo() { if (this.future.length) { this.past.push(this.document); this.document = this.future.pop(); } }
   update(id, group, key, value) {
-    assert(['props','styles','bindings'].includes(group), 'Gruppo non valido');
-    this.change(doc => { const n = locate(doc, id)?.node; assert(n, 'Elemento non trovato'); value === undefined ? delete n[group][key] : n[group][key] = value; });
+    assert(['props','styles','bindings','meta','design'].includes(group), 'Gruppo non valido');
+    this.change(doc => { const n = locate(doc, id)?.node; assert(n, 'Elemento non trovato'); n[group]??={}; value === undefined ? delete n[group][key] : n[group][key] = value; });
+  }
+  responsive(id,device,group,key,value) {
+    this.change(doc=>{const n=locate(doc,id)?.node;assert(n,'Elemento non trovato');n.responsive??={};const r=n.responsive[device]??={};if(group){r[group]??={};value===undefined?delete r[group][key]:r[group][key]=value;}else{value===undefined?delete r[key]:r[key]=value;}});
+  }
+  pasteStyles(id,source) {
+    this.change(doc=>{
+      const n=locate(doc,id).node, allowed=this.catalog[n.type].styles;
+      n.styles=Object.fromEntries(Object.entries(source.styles??{}).filter(([k])=>allowed.includes(k)));
+      n.design=clone(source.design??{});n.responsive=clone(source.responsive??{});
+      for(const r of Object.values(n.responsive)) {if(r.styles) r.styles=Object.fromEntries(Object.entries(r.styles).filter(([k])=>allowed.includes(k)));if(n.type!=='row'||r.columns?.length!==n.children.length) delete r.columns;}
+    });
   }
   add(parentId, type, props = {}) {
     const fresh = node(type, this.catalog, props);
@@ -141,7 +193,7 @@ export class Engine {
     let fresh;
     this.change(doc => {
       const f = locate(doc,id); assert(f && f.node.type !== 'column', 'Modifica le colonne dalla griglia'); fresh = clone(f.node);
-      function renew(n) { n.id = nodeId(); n.children?.forEach(renew); }
+      function renew(n) { n.id = nodeId(); if(n.meta) delete n.meta.anchor; n.children?.forEach(renew); }
       renew(fresh); f.parent.children.splice(f.index+1,0,fresh);
     });
     return fresh.id;
@@ -165,6 +217,7 @@ export class Engine {
         row.children.at(-1).children.push(...removed.flatMap(c => c.children));
       }
       row.props.layout = clone(layout);
+      for(const r of Object.values(row.responsive??{})) if(r.columns?.length!==layout.length) delete r.columns;
     });
   }
 }
