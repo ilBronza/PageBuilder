@@ -76,7 +76,11 @@ Registra un elemento con `Registry::register($type, $definition, $renderer)` nel
 
 Fornisci all’editor lo stesso catalogo serializzato con `Codec::wire()` e un renderer JS in `renderers[type]`, oppure usa l’anteprima HTTP PHP. Le definizioni estese vanno aggiunte ai fixture di parità. I renderer personalizzati sono codice fidato: devono escapare i propri valori e possono influire sulla sicurezza dell’output.
 
-Gli adapter browser implementano `load()` e `save(document)`, opzionalmente `preview(document, {signal})`. Un adapter esterno deve proteggere l’accesso e verificare una revisione o ETag. `httpAdapter` implementa GET/PUT, cookie same-origin, token CSRF, controllo degli errori e anteprima cancellabile per le route Laravel. L’app può passare un callback `pickImage()` che restituisce `{url, alt}` senza introdurre un archivio media nel builder.
+Gli adapter browser implementano `load()` e `save(document)`, opzionalmente `preview(document, {signal})`. Un adapter esterno deve proteggere l’accesso e verificare una revisione o ETag. `httpAdapter` implementa GET/PUT, cookie same-origin, token CSRF, controllo degli errori e anteprima cancellabile per le route Laravel. L’app può passare un callback `pickImage()` che restituisce `{url, alt}` oppure configurare il media manager opzionale con `MediaOptions::forLibrary()`.
+
+`MediaLibrary` è il proprietario Spatie delle immagini di un archivio configurato dall’app. La tabella del package contiene solo la chiave dell’archivio; file e metadati risiedono nella tabella `media` dell’host e nel disco pubblico dichiarato. Le query sono circoscritte alla relazione del proprietario e alla collezione `pagebuilder-images`. Il Gate `pagebuilder.media` controlla `view`, `upload` e `update` per alias, compreso l’eventuale perimetro tenant. Il controller non accetta nomi di disco o modelli dal client.
+
+`resources/js/media.js` gestisce il dialogo e le richieste same-origin con CSRF. Upload e metadati sono indipendenti dal salvataggio del documento; il selettore restituisce soltanto URL e testo alternativo. L’editor li applica con una sola operazione Undo al nodo originario, oppure al suo sfondo per il dispositivo selezionato. Un selettore completato dopo la distruzione o il ricaricamento dell’editor viene ignorato.
 
 Riferimenti UIkit: [griglie](https://getuikit.com/docs/grid), [larghezze responsive](https://getuikit.com/docs/width). UIkit è incluso con versione fissata; non si dipende da una CDN in esecuzione.
 

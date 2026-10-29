@@ -5,6 +5,14 @@ if (!is_file($vendor.'/autoload.php')) $vendor = __DIR__.'/../../.ibtest/vendor'
 $loader = require $vendor.'/autoload.php';
 $loader->addPsr4('IlBronza\\PageBuilder\\', __DIR__.'/../src/', true);
 $loader->addPsr4('IlBronza\\PageBuilder\\Tests\\', __DIR__.'/', true);
+// Reuse an existing host installation when the shared test vendor lacks the
+// optional image conversion dependencies; never install into the shared vendor.
+if ($mediaVendor = getenv('PAGEBUILDER_MEDIA_VENDOR')) {
+    $prefixes = require $mediaVendor.'/composer/autoload_psr4.php';
+    foreach (['Spatie\\Image\\', 'Spatie\\ImageOptimizer\\', 'Spatie\\TemporaryDirectory\\'] as $prefix) {
+        if (isset($prefixes[$prefix])) $loader->addPsr4($prefix, $prefixes[$prefix]);
+    }
+}
 // Shared dependencies are read-only. Testbench writes only into this package.
 $runtime = __DIR__.'/runtime';
 if (!is_dir($runtime.'/bootstrap')) {

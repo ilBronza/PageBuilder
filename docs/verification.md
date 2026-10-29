@@ -52,6 +52,14 @@ Il test API del playground verifica anche importazione dei dati della demo prece
 
 I test Laravel aggiunti verificano il salvataggio HTTP dei frammenti come `static`, cronologia e ripristino, archiviazione di un documento preesistente prima della modifica, cambio statico/template, ripristino di template condivisi, permessi su record/area/template e recupero degli orfani tramite copia protetta da Gate dedicato. Le risposte conservano gli oggetti JSON vuoti nelle proprietà dei nodi.
 
+## Media manager — 28 ottobre 2026
+
+- Suite PHP package: **30 test, 199 asserzioni**, tutti superati su PHP 8.4.27. Inclusi upload raster con miniatura reale, metadati, ricerca, filtro cartella, isolamento tra archivi, permessi separati, rifiuto file non validi e pulizia del solo upload fallito.
+- Suite Node: **114 test superati**. Suite Chromium: **17 test superati**, inclusi upload multipart, selezione e Undo atomico, sfondo mobile, salvataggio/riapertura, errori di rete, annullamento e file invalidi.
+- Integrazione GeG: **12 test, 70 asserzioni**, tutti superati su SQLite in memoria. Verificato anche l’upload con il modello Media personalizzato dell’host, conversione, lettura e modifica dei metadati, accesso guest e permessi amministrativi.
+- Su GeG locale: migrazione dedicata applicata, asset pubblicati e archivio separato configurato. La sessione autenticata apre correttamente il builder e il dialogo della libreria. Il caricamento manuale non è confermato: l’automazione Chrome ha segnalato l’assenza del permesso di accesso ai file locali dell’estensione; non viene conteggiata come prova di upload riuscito.
+- Il file locale `theme/variables.css` è rimasto invariato dopo la pubblicazione degli asset.
+
 ## Esecuzione
 
 ```sh
@@ -72,6 +80,8 @@ php ../.ibtest/vendor/phpunit/phpunit/phpunit -c phpunit.xml --no-coverage --do-
 
 Il test browser può usare un browser già installato passando `PAGEBUILDER_BROWSER_EXECUTABLE`. `NODE_PATH` può indicare moduli Playwright già disponibili. I test non modificano `playground/.data`.
 
+La suite media richiede le dipendenze di sviluppo Spatie e GD. Se il vendor condiviso non contiene le dipendenze di conversione già installate in un’app host, `PAGEBUILDER_MEDIA_VENDOR=/percorso/host/vendor` permette di riusare i namespace Spatie Image, ImageOptimizer e TemporaryDirectory senza modificare il vendor condiviso.
+
 È incluso un workflow GitHub Actions per PHP 8.2/8.4, Node 20 e Chromium. **Il workflow è predisposto ma non è stato eseguito su GitHub in questa sessione**; i risultati sopra sono quelli locali.
 
 ## Limiti effettivi
@@ -79,7 +89,7 @@ Il test browser può usare un browser già installato passando `PAGEBUILDER_BROW
 - Laravel 11 e PHP 8.4 sono verificati dalla suite locale; GeG fornisce una prova manuale su Laravel 12. Le dipendenze Illuminate sono fornite dall’app ospitante; non è stata certificata l’intera compatibilità con Laravel 12/13 o altri PHP.
 - Nessun test MySQL/PostgreSQL, stress concorrente multi-processo, audit accessibilità completo, browser diversi da Chromium o installazione pulita da Packagist in questa sessione.
 - FileCabinet è testato con tipi locali reali `FormrowText`, `Formrow` e `Dossierrow`, ma caricamento del record simulato; non certifica una installazione completa. Nel playground i relativi valori sono dimostrativi.
-- La gestione amministrativa è ora nel package. L’app continua a scegliere i record autorizzati, il perimetro/tenant, le sorgenti e le immagini pubbliche. Il package non espone automaticamente tutti i record e non contiene un nuovo archivio di upload media.
+- La gestione amministrativa e il media manager opzionale sono nel package. L’app continua a scegliere record autorizzati, perimetro/tenant, sorgenti, archivi e dischi pubblici. Gli allegati privati o appartenenti ad altri modelli non vengono esposti automaticamente.
 - La cronologia conserva gli stati salvati senza approvazioni editoriali o pubblicazione differita. Gli stati anteriori all’aggiornamento vengono inclusi dal primo salvataggio successivo; non si possono ricostruire versioni mai archiviate. La lista mostra le ultime 100 versioni.
 - Il recupero copia documenti con ownership vuota, richiede un Gate dedicato e non elimina gli originali. Nessuna garbage collection automatica.
 - Restano i limiti del formato v1: 500 nodi e 1 MB per documento, frammenti statici terminali, nessun HTML libero, ripetitore complesso o importazione YOOtheme.

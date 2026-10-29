@@ -5,6 +5,7 @@ import {previewStyles, loadVariables, defaultVariablesStyle} from './theme.js';
 import {designControls, advancedControls, richControls, richMarkup, tableControls, field, group} from './inspector.js';
 import {parseDesign} from './design.js';
 import {readRich, fromPlain, richPlain} from './richtext.js';
+import {createMediaPicker} from './media.js';
 
 const labels = {width:'Larghezza',text:'Testo',tag:'Tag HTML',size:'Dimensione del titolo',src:'URL immagine pubblica',alt:'Testo alternativo',ratio:'Proporzioni',href:'Collegamento',variant:'Aspetto',items:'Voci (una per riga)',area:'Area del record',background:'Sfondo',padding:'Spaziatura interna',margin:'Margine',align:'Allineamento',color:'Colore',gap:'Distanza colonne',rowGap:'Distanza righe',vertical:'Allineamento verticale',fontSize:'Dimensione testo',fontWeight:'Peso del testo',radius:'Arrotondamento',border:'Bordo',shadow:'Ombra',maxWidth:'Larghezza massima',title:'Titolo',linkText:'Testo collegamento',position:'Posizione immagine',icon:'Icona',label:'Descrizione accessibile'};
 const tokenLabels = {default:'Predefinito',none:'Nessuno',small:'Piccolo',medium:'Medio',large:'Grande',xlarge:'Molto grande','2xlarge':'Extra grande',expand:'Tutta larghezza',muted:'Tenue',primary:'Primary',secondary:'Secondary',success:'Successo',warning:'Avviso',danger:'Pericolo',emphasis:'Enfasi',inverse:'Bianco',left:'Sinistra',center:'Centro',right:'Destra',top:'In alto',middle:'Al centro',bottom:'In basso',collapse:'Nessuna',auto:'Originale',square:'Quadrata',landscape:'Orizzontale',portrait:'Verticale',bullet:'Punti',decimal:'Numeri',divider:'Linee',striped:'Righe alternate',text:'Testo',icon:'Icona',normal:'Normale',bold:'Grassetto',thin:'Sottile',thick:'Spesso',pill:'Pillola',star:'Stella',check:'Spunta',heart:'Cuore',info:'Informazioni',calendar:'Calendario',location:'Posizione',mail:'Email',phone:'Telefono'};
@@ -42,6 +43,8 @@ export async function mountEditor(root, options) {
   root.innerHTML = `<header class="pb-toolbar"><div class="pb-brand"><span class="pb-mark">▥</span><div><strong>${e(options.title ?? 'PageBuilder')}</strong><small>${e(mode === 'template' ? 'TEMPLATE CONDIVISO' : mode === 'area' ? 'AREA DEL RECORD' : 'PAGINA STATICA')}</small></div></div><div class="pb-history">${button('undo','Annulla','↶')}${button('redo','Ripristina','↷')}</div><div class="pb-devices" role="group" aria-label="Larghezza anteprima">${button('desktop','Desktop',deviceIcon('desktop'),'aria-pressed="true"')}${button('tablet','Tablet',deviceIcon('tablet'),'aria-pressed="false"')}${button('mobile','Mobile',deviceIcon('mobile'),'aria-pressed="false"')}</div><span class="pb-status" role="status"></span>${button('import','Importa JSON','↑ JSON')}<input type="file" data-import accept=".json,application/json" hidden>${button('export','Esporta JSON','↓ JSON')}${button('code','Mostra codice','</> Codice')}${button('fullscreen','Schermo intero','⛶')}${button('reload','Riapri documento','Riapri')}${button('save','Salva documento','Salva','class="pb-primary"')}</header><div class="pb-message" role="alert" hidden></div><div class="pb-workspace"><aside class="pb-sidebar" aria-label="Builder"><div class="pb-structure-panel"><div class="pb-side-heading"><div><h2>Builder</h2></div>${button('root','Aggiungi struttura','+')}</div><p class="pb-document-title">${e(options.title ?? 'La mia pagina')}</p><div class="pb-structure-views" role="group" aria-label="Vista della struttura">${button('view:layout','Vista layout','▥ Layout','aria-pressed="true"')}${button('view:tree','Vista albero','☷ Albero','aria-pressed="false"')}</div><div class="pb-tree" data-view="layout"></div></div><div class="pb-properties-panel" hidden><div class="pb-sidebar-back">${button('builder','Torna al builder','← Builder')}</div><div class="pb-inspector"></div></div><footer class="pb-sidebar-footer">${button('hide-sidebar','Nascondi pannello','«')}</footer></aside><main class="pb-stage">${button('show-sidebar','Mostra pannello','» Builder','class="pb-sidebar-show" hidden')}<div class="pb-stage-label"><span>ANTEPRIMA LIVE</span><span class="pb-size-label">Desktop · 1280 px</span></div><div class="pb-contextbar" role="group" aria-label="Azioni sull’elemento selezionato" hidden></div><div class="pb-preview-wrap"><iframe title="Anteprima del documento" sandbox="allow-same-origin"></iframe></div><div class="pb-stage-footer">Seleziona un elemento per modificarlo <span>UIkit · PageBuilder</span></div></main></div><dialog class="pb-catalog" aria-label="Catalogo elementi"><div class="pb-dialog-heading"><div><small>DAI FORMA AL CONTENUTO</small><h2>Aggiungi un elemento</h2></div>${button('close','Chiudi catalogo','×')}</div><p class="pb-catalog-context"></p><label class="pb-catalog-search"><span>Cerca elementi</span><input type="search" data-catalog-search placeholder="Titolo, immagine, elenco…" autocomplete="off"></label><p class="pb-catalog-count" role="status"></p><div class="pb-catalog-grid"></div></dialog>`;
   root.insertAdjacentHTML('beforeend',`<dialog class="pb-code-dialog" aria-label="Codice del documento"><div class="pb-dialog-heading"><h2>Codice del documento</h2>${button('code-close','Chiudi codice','×')}</div><div class="pb-code-tabs">${button('code-html','HTML risultante')}${button('code-json','Documento JSON')}</div><p class="pb-code-hint"></p><textarea data-code spellcheck="false" aria-label="Codice"></textarea><p class="pb-code-error" role="alert"></p><div class="pb-node-actions">${button('code-copy','Copia codice')}${button('code-apply','Applica JSON')}</div></dialog>`);
   const q = selector => root.querySelector(selector);
+  const managedPicker = !options.pickImage && options.mediaLibrary ? createMediaPicker(root,options) : null;
+  const pickImage = options.pickImage ?? managedPicker;
   const frame = q('iframe');
   const fitPreview=()=>{const wrap=q('.pb-preview-wrap'),width={desktop:1280,tablet:820,mobile:390}[device],scale=Math.min(1,wrap.clientWidth/width);frame.style.width=`${width}px`;frame.style.height=`${wrap.clientHeight/Math.max(scale,.1)}px`;frame.style.transform=`scale(${scale})`;};
   const previewResize=new ResizeObserver(fitPreview);previewResize.observe(q('.pb-preview-wrap'));
@@ -143,7 +146,7 @@ export async function mountEditor(root, options) {
         content += '</label>';
         if(n.type==='text'&&key==='text'&&!binding) content+=button('rich-on','Attiva testo formattato','B / I · Testo formattato');
         if (mode==='template' && !binding && (spec.binding==='text' || spec.kind==='list')) content += `<label class="pb-field"><span>Inserisci variabile nel testo</span><select data-variable="${key}" aria-label="Inserisci variabile in ${e(labels[key]??key)}"><option value="">Scegli una variabile…</option>${Object.values(options.sources??{}).filter(s=>compatible('text',s)).map(s=>`<option value="${e(s.id)}">${e(s.label)}</option>`).join('')}</select></label>`;
-        if (key==='src' && !binding && options.pickImage) content += button('image','Scegli immagine','Scegli dalla libreria');
+        if (key==='src' && !binding && pickImage) content += button('image','Scegli immagine','Scegli dalla libreria');
       }
       if(propertyTab==='style') {
         const groups={Layout:['align','vertical','gap','rowGap','maxWidth'],Tipografia:['color','fontSize','fontWeight'],Sfondo:['background'],Spaziature:['padding','margin'],'Bordi e ombre':['radius','border','shadow']};
@@ -151,7 +154,7 @@ export async function mountEditor(root, options) {
           const fields=keys.filter(key=>def.styles.includes(key)).map(key=>['background','color'].includes(key)?palette(key,styles[key],localStyles[key]).replaceAll('Tema globale',device==='desktop'?'Tema globale':'Eredita'):field(labels[key]??key,`<select data-style="${key}"><option value="">${device==='desktop'?'Tema globale':'Eredita'}</option>${choices(styles[key],localStyles[key])}</select>`)).join('');
           if(fields) content+=group(title,fields);
         }
-        content+=designControls(n,device);
+        content+=designControls(n,device,!!pickImage);
         if(device!=='desktop') content+=field('Visibilità',`<select data-visibility><option value="">Eredita</option><option value="show" ${n.responsive?.[device]?.hidden===false?'selected':''}>Mostra</option><option value="hide" ${n.responsive?.[device]?.hidden===true?'selected':''}>Nascondi</option></select>`)+button('reset-responsive','Ripristina impostazioni del dispositivo');
       }
     }
@@ -379,7 +382,19 @@ export async function mountEditor(root, options) {
       if (action==='delete') {engine.remove(selected);selected=null;}
       if (action==='up') engine.reorder(selected,-1); if(action==='down')engine.reorder(selected,1);
       if (action==='content' || action==='style' || action==='advanced') { propertyTab=action; inspector(); q(`.pb-tabs [data-action=${action}]`).focus({preventScroll:true}); status(); return; }
-      if (action==='image') { const result=await options.pickImage(); if(result) {engine.update(selected,'props','src',result.url);engine.update(selected,'props','alt',result.alt??'');} }
+      if (action==='image' || action==='background-image') {
+        const current=engine,id=selected,targetDevice=device,background=action==='background-image';
+        const result=await pickImage({target:background?'background':'image'});
+        if(disposed || current!==engine || !locate(engine.document,id))return;
+        if(result)engine.change(doc=>{
+          const n=locate(doc,id).node;
+          if(background){
+            let target=n;if(targetDevice!=='desktop'){n.responsive??={};target=n.responsive[targetDevice]??={};}
+            target.design??={};target.design.backgroundImage=result.url;
+            if(!target.design.backgroundSize && !n.design?.backgroundSize)target.design.backgroundSize='cover';
+          } else {n.props.src=result.url;n.props.alt=result.alt??'';}
+        });
+      }
       refresh();
     } catch(err){error=err.message;status();}
   },{signal:abort.signal});
@@ -454,5 +469,5 @@ export async function mountEditor(root, options) {
   },{signal:abort.signal});
   window.addEventListener('beforeunload',event=>{if(engine?.dirty || options.isDirty?.()){event.preventDefault();event.returnValue='';}},{signal:abort.signal});
   await load();
-  return {get engine(){return engine;},get busy(){return saving || loading;},importDocument,reload:load,refreshStatus:status,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;abort.abort();previewResize.disconnect();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
+  return {get engine(){return engine;},get busy(){return saving || loading;},importDocument,reload:load,refreshStatus:status,async setPreview(values,areaDocuments={}){options.values=values;options.areaDocuments=areaDocuments;await preview();},destroy(){disposed=true;managedPicker?.destroy();abort.abort();previewResize.disconnect();previewRequest?.abort();frame.onload=null;root.replaceChildren();}};
 }

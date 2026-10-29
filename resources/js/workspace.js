@@ -111,7 +111,7 @@ export async function mountWorkspace(root, options) {
     const editorMode = mode === 'template' ? 'template' : area.kind === 'fragment' ? 'area' : 'static';
     editor = await mountEditor(container, {
       ...options, title: mode === 'template' ? next.name : `${record.label} · ${area.label}`, mode: editorMode, kind: area.kind,
-      pickImage: options.pickImage ?? (options.media?.length ? pickImage : undefined),
+      pickImage: options.pickImage ?? (!options.mediaLibrary && options.media?.length ? pickImage : undefined),
       onStatus(state) { editorBusy = state.saving || state.loading; if (!disposed) controls(); },
       adapter: {
         async load() { entity = await request(url); return entity.document; },

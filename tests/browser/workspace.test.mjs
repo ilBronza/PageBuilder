@@ -10,7 +10,7 @@ const {chromium, expect} = (() => {
   const require = createRequire(import.meta.url);
   return {...require('playwright'), expect: require('playwright/test').expect};
 })();
-async function fixture(t, {variables} = {}) {
+async function fixture(t, {variables,mediaLibrary} = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'pagebuilder-browser-'));
   const server = await createPlayground({dataDir:dir});
   if (variables) {
@@ -30,10 +30,10 @@ async function fixture(t, {variables} = {}) {
   const errors = []; const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', dialog => dialog.accept());
-  if (variables) {
+  if (variables || mediaLibrary) {
     await context.route('**/api/workspace', async route => {
       const response = await route.fetch();
-      await route.fulfill({response, json:{...await response.json(), variablesUrl:`${base}/local-variables.css`,defaultVariablesUrl:`${base}/resources/css/variables.css?v=current`}});
+      await route.fulfill({response, json:{...await response.json(), ...(variables?{variablesUrl:`${base}/local-variables.css`,defaultVariablesUrl:`${base}/resources/css/variables.css?v=current`}:{}),...(mediaLibrary?{media:[],mediaLibrary:{url:`${base}/test-media`,label:'Immagini di prova',canUpload:true,canUpdate:true,maxBytes:10485760,...mediaLibrary}}:{})}});
     });
   }
   await page.goto(base);
@@ -442,4 +442,70 @@ test('new components and visual table editing survive save and reopen', async t 
   await save(page);await page.locator('[data-action=reload]').click();
   await expect(preview.getByRole('columnheader',{name:'Servizio',exact:true})).toBeVisible();await expect(preview.getByRole('cell',{name:'Noleggio',exact:true})).toBeVisible();
   await expect(preview.locator('.pb-card-inner')).toHaveCount(1);await expect(preview.locator('.pb-icon-svg')).toHaveCount(1);await expect(preview.locator('.pb-image-text')).toHaveCount(1);
+});
+
+test('media library uploads, edits metadata and inserts images and responsive backgrounds atomically', async t => {
+  const {page,context,base}=await fixture(t,{mediaLibrary:{}});
+  const records=[];let uploaded=0;
+  await context.route('**/test-media**',async route=>{
+    const req=route.request(),url=new URL(req.url());
+    if(req.method()==='POST'){
+      assert.match(req.postData(),/name="file"/);assert.match(req.postData(),/logo\.png/);
+      const item={id:String(++uploaded),name:'Logo di prova',url:`${base}/playground/composition.svg?media=${uploaded}`,thumbnail:`${base}/playground/composition.svg`,alt:'Un logo di prova',folder:'Brand',width:120,height:80,bytes:800};records.push(item);
+      return route.fulfill({status:201,json:item});
+    }
+    if(req.method()==='PATCH'){
+      const record=records.find(item=>url.pathname.endsWith('/'+item.id));Object.assign(record,req.postDataJSON());return route.fulfill({json:record});
+    }
+    const items=records.filter(item=>(!url.searchParams.get('q') || item.name.includes(url.searchParams.get('q'))) && (!url.searchParams.get('folder') || item.folder===url.searchParams.get('folder')));
+    return route.fulfill({json:{data:items,folders:[...new Set(records.map(item=>item.folder))],page:1,lastPage:1,total:items.length}});
+  });
+  await selectNode(page,'illustration');await page.getByRole('button',{name:'Scegli immagine',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'Libreria immagini',exact:true});
+  await expect(modal.getByText('Nessuna immagine trovata.',{exact:false})).toBeVisible();
+  await modal.getByRole('button',{name:'Carica immagini',exact:true}).click();
+  await modal.locator('[data-media-file]').setInputFiles({name:'logo.png',mimeType:'image/png',buffer:Buffer.from('fixture bytes')});
+  await modal.locator('[data-media-upload-name]').fill('Logo di prova');await modal.locator('[data-media-upload-folder]').fill('Brand');await modal.locator('[data-media-upload-alt]').fill('Un logo di prova');
+  await modal.getByRole('button',{name:'Carica nella libreria',exact:true}).click();
+  await expect(modal.locator('[data-media-id="1"]')).toBeVisible();
+  await modal.locator('[data-media-name]').fill('Logo aggiornato');await modal.locator('[data-media-alt]').fill('Testo alternativo aggiornato');
+  await modal.getByRole('button',{name:'Salva dettagli nella libreria',exact:true}).click();
+  await expect(modal.locator('.pb-media-status')).toHaveText('Dettagli salvati nella libreria.');
+  await modal.getByRole('button',{name:'Inserisci immagine',exact:true}).click();
+  await expect(modal).not.toBeVisible();await expect(page.locator('[data-prop=alt]')).toHaveValue('Testo alternativo aggiornato');
+  await expect(page.frameLocator('.pb-preview-wrap iframe').locator('[data-pb-id=illustration] img')).toHaveAttribute('src',records[0].url);
+  await page.getByRole('button',{name:'Annulla',exact:true}).click();await expect(page.locator('[data-prop=src]')).toHaveValue('/playground/composition.svg');
+  await expect(page.locator('[data-prop=alt]')).toHaveValue('Composizione geometrica di archi e forme botaniche');
+  await page.getByRole('button',{name:'Ripristina',exact:true}).click();
+  await selectNode(page,'hero');await page.getByRole('button',{name:'Stili mobile',exact:true}).click();await openGroup(page,'Sfondo immagine');
+  await page.getByRole('button',{name:'Scegli immagine di sfondo',exact:true}).click();
+  await modal.locator('[data-media-search]').fill('manca');await expect(modal.locator('.pb-media-items button')).toHaveCount(0);
+  await modal.locator('[data-media-search]').fill('Logo');await expect(modal.locator('.pb-media-items button')).toHaveCount(1);
+  await modal.getByLabel('Filtra per cartella',{exact:true}).selectOption('Brand');
+  await modal.getByRole('button',{name:'Seleziona Logo aggiornato',exact:true}).click();await modal.getByRole('button',{name:'Usa come sfondo',exact:true}).click();
+  await expect(page.frameLocator('.pb-preview-wrap iframe').locator('[data-pb-id=hero]')).toHaveCSS('background-image',`url("${records[0].url}")`);
+  await page.getByRole('button',{name:'Stili desktop',exact:true}).click();await expect(page.frameLocator('.pb-preview-wrap iframe').locator('[data-pb-id=hero]')).toHaveCSS('background-image','none');
+  await save(page);await page.locator('[data-action=reload]').click();await selectNode(page,'hero');await page.getByRole('button',{name:'Stili mobile',exact:true}).click();
+  await expect(page.frameLocator('.pb-preview-wrap iframe').locator('[data-pb-id=hero]')).toHaveCSS('background-image',`url("${records[0].url}")`);
+  assert.equal(uploaded,1);assert.equal(records[0].alt,'Testo alternativo aggiornato');
+});
+
+test('media library handles network failures, cancellation and invalid files without changing the document',async t=>{
+  const {page,context}=await fixture(t,{mediaLibrary:{}});let uploadCalls=0,fail=true;
+  await context.route('**/test-media**',async route=>{
+    if(route.request().method()==='POST'){uploadCalls++;return route.fulfill({status:422,json:{errors:{file:['Il server ha rifiutato il file.']}}});}
+    return route.fulfill(fail?{status:503,json:{message:'Archivio temporaneamente non disponibile'}}:{json:{data:[],folders:[],page:1,lastPage:1,total:0}});
+  });
+  await selectNode(page,'illustration');await page.getByRole('button',{name:'Scegli immagine',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'Libreria immagini',exact:true});
+  await expect(modal.getByRole('alert')).toContainText('Archivio temporaneamente non disponibile');
+  fail=false;await modal.getByRole('button',{name:'Aggiorna libreria',exact:true}).click();await expect(modal.locator('.pb-media-status')).toHaveText('0 immagini nella libreria');
+  await modal.getByRole('button',{name:'Carica immagini',exact:true}).click();
+  await modal.locator('[data-media-file]').setInputFiles({name:'old.png',mimeType:'image/png',buffer:Buffer.from('old selection')});
+  await modal.locator('[data-media-file]').setInputFiles({name:'bad.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg/>')});
+  await expect(modal.getByRole('alert')).toContainText('formato non supportato');await expect(modal.getByRole('button',{name:'Carica nella libreria',exact:true})).toBeDisabled();
+  await modal.locator('[data-media-file]').setInputFiles({name:'valid.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+  await modal.getByRole('button',{name:'Carica nella libreria',exact:true}).click();await expect(modal.getByRole('alert')).toContainText('Il server ha rifiutato');
+  await modal.getByRole('button',{name:'Annulla',exact:true}).click();await expect(modal).not.toBeVisible();
+  await expect(page.locator('[data-action=save]')).toBeDisabled();await expect(page.locator('[data-prop=src]')).toHaveValue('/playground/composition.svg');assert.equal(uploadCalls,1);
 });

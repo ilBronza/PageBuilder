@@ -4,7 +4,7 @@ import {renderRich} from './richtext.js';
 
 export const field = (label,body,hint='') => `<label class="pb-field"><span>${e(label)}</span>${body}${hint?`<small class="pb-hint">${e(hint)}</small>`:''}</label>`;
 export const group = (label,body,open=true) => `<details class="pb-settings-group" ${open?'open':''}><summary>${e(label)}</summary><div>${body}</div></details>`;
-export function designControls(n,device) {
+export function designControls(n,device,canPick=false) {
   const design=device==='desktop'?n.design??{}:n.responsive?.[device]?.design??{};
   const input=key=>{
     const [label,kind,values]=designFields[key],v=design[key]??'';
@@ -12,7 +12,7 @@ export function designControls(n,device) {
   };
   return group('Spaziature per lato',`<div class="pb-field-grid">${Object.keys(designFields).filter(k=>/^(padding|margin)/.test(k)).map(input).join('')}</div>`,false)
     +group('Misure e tipografia personalizzate',['maxWidth','minHeight','fontSize','lineHeight','letterSpacing','fontFamily'].map(input).join(''),false)
-    +group('Sfondo immagine',[ 'backgroundImage','backgroundSize','backgroundPosition'].map(input).join(''),false)
+    +group('Sfondo immagine',input('backgroundImage')+(canPick?'<button type="button" data-action="background-image">Scegli immagine di sfondo</button>':'')+['backgroundSize','backgroundPosition'].map(input).join(''),false)
     +group('Bordi personalizzati',['borderStyle','borderWidth','borderColor','borderRadius'].map(input).join(''),false);
 }
 export function advancedControls(n,device,button) {

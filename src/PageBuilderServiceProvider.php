@@ -4,6 +4,7 @@ namespace IlBronza\PageBuilder;
 
 use IlBronza\PageBuilder\Documents\{Registry, Validator, Renderer};
 use IlBronza\PageBuilder\Http\BuilderController;
+use IlBronza\PageBuilder\Http\MediaController;
 use IlBronza\PageBuilder\Services\ThemeAssets;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +35,9 @@ class PageBuilderServiceProvider extends ServiceProvider
         ], 'pagebuilder.variables');
         if (!config('pagebuilder.routes')) return;
         Route::prefix(config('pagebuilder.prefix'))->middleware(config('pagebuilder.middleware'))->name('pagebuilder.')->group(function () {
+            Route::get('media/{library}', [MediaController::class, 'index'])->name('media.index');
+            Route::post('media/{library}', [MediaController::class, 'store'])->middleware('throttle:30,1')->name('media.store');
+            Route::patch('media/{library}/{media}', [MediaController::class, 'update'])->whereNumber('media')->name('media.update');
             Route::get('records/{host}/{record}/edit', [BuilderController::class, 'workspace'])->name('workspace');
             Route::get('records/{host}/{record}/areas/{area}/history/{revision?}', [BuilderController::class, 'contentHistory'])->whereNumber('revision')->name('contents.history');
             Route::get('templates/{template}/history/{revision?}', [BuilderController::class, 'templateHistory'])->whereNumber('revision')->name('templates.history');

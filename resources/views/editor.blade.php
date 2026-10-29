@@ -1,5 +1,6 @@
 {{-- Include in an authorized host page. $options: url, previewUrl?, title?, mode?, kind?, sources?, areas?. --}}
 @include('pagebuilder::assets')
+@php($options += ['csrfToken' => csrf_token()])
 @php($options += ['variablesUrl' => app(\IlBronza\PageBuilder\Services\ThemeAssets::class)->variablesUrl(), 'defaultVariablesUrl' => app(\IlBronza\PageBuilder\Services\ThemeAssets::class)->assetUrl('css/variables.css'), 'previewStyles' => app(\IlBronza\PageBuilder\Services\ThemeAssets::class)->previewStyles()])
 @php($editorId = 'pagebuilder-'.\Illuminate\Support\Str::uuid())
 <div id="{{ $editorId }}"></div>

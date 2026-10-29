@@ -141,7 +141,7 @@ Per avere il selettore di più record nel tuo layout, passa una collezione già 
 @include('pagebuilder::workspace', ['options' => $options])
 ```
 
-Non esiste un endpoint che enumeri tutti i record dell’app. Ogni record delle opzioni può avere un `publicUrl` per area, impostato dall’integrazione. Il selettore media mostra soltanto la lista pubblica fornita; chi monta il workspace direttamente in JavaScript può passare `pickImage()` per usare la propria libreria. Vedi [esempio completo](examples/workspace.blade.php).
+Non esiste un endpoint che enumeri tutti i record dell’app. Ogni record delle opzioni può avere un `publicUrl` per area, impostato dall’integrazione. Per le immagini puoi usare la lista pubblica `media`, il media manager Spatie descritto sotto oppure un callback `pickImage()` personalizzato. Vedi [esempio completo](examples/workspace.blade.php).
 
 **Importa JSON** valida struttura, tipo, sorgenti e limite di 1 MB prima di cambiare il documento. L’importazione resta locale fino a Salva ed è annullabile. **Cronologia** mostra le ultime 100 versioni salvate dell’area o del template; il ripristino usa le stesse autorizzazioni, validazioni e revisioni del salvataggio normale. Un conflitto lascia intatte le modifiche locali.
 
@@ -183,6 +183,56 @@ Nel frontend:
 ```
 
 Se carichi già il tuo CSS UIkit passa `loadUikit => false`. Puoi usare direttamente `{!! $product->renderPageArea('main', auth()->user()) !!}` includendo `content.css` nel layout. Errori strutturali o dati non disponibili non espongono dettagli tecnici al visitatore: il renderer restituisce vuoto e segnala l’errore al logger Laravel. Non riscrive il documento danneggiato.
+
+## Media manager con Spatie
+
+Il selettore integrato consente di caricare immagini, cercarle, filtrarle per cartella, modificarne nome e testo alternativo, quindi inserirle nei blocchi o negli sfondi. È opzionale: il builder continua a funzionare senza Spatie quando `mediaLibrary` non è configurata.
+
+L’app ospitante deve avere `spatie/laravel-medialibrary` v11, la sua tabella `media` e GD o Imagick configurato. Esegui le migrazioni del package per creare `pagebuilder_media_libraries`, poi ripubblica gli asset:
+
+```sh
+php artisan migrate
+php artisan vendor:publish --tag=pagebuilder.assets --force
+```
+
+In `config/pagebuilder.php` dichiara gli archivi consentiti e un disco Laravel pubblico:
+
+```php
+'media' => [
+    'libraries' => [
+        'documents' => ['label' => 'Immagini documenti', 'disk' => 'builder_media'],
+    ],
+    'max_kb' => 10240,
+    'max_pixels' => 40000000,
+],
+```
+
+Il disco deve dichiarare `visibility => public` e fornire URL raggiungibili dal browser. Per un disco locale puoi usare una directory e un collegamento pubblico dedicati, evitando di esporre gli altri allegati dell’app. Il manager elenca solo la propria collezione `pagebuilder-images`; gli allegati Spatie già presenti su altri modelli non vengono importati automaticamente.
+
+L’app autorizza separatamente lettura, upload e modifica dei metadati tramite il Gate `pagebuilder.media`. L’alias identifica l’intero archivio: verifica qui anche il tenant quando necessario.
+
+```php
+Gate::define('pagebuilder.media', fn ($user, string $action, string $library) =>
+    $library === 'documents'
+    && in_array($action, ['view', 'upload', 'update'], true)
+    && Gate::forUser($user)->allows('document-templates.manage'));
+
+$options['mediaLibrary'] = app(\IlBronza\PageBuilder\Services\MediaOptions::class)
+    ->forLibrary('documents', auth()->user());
+```
+
+Passa queste opzioni a `pagebuilder::editor`, `pagebuilder::workspace` oppure a `mountEditor`/`mountWorkspace`. Le view Blade includono il token CSRF; se monti direttamente da JavaScript passa anche `csrfToken`. Le route della libreria sono protette dai middleware del package e dal Gate. Senza autorizzazione di lettura, `forLibrary()` restituisce `null`.
+
+La precedenza è: callback `pickImage` personalizzato, libreria `mediaLibrary`, lista statica `media` del workspace. Il callback riceve `{target: 'image' | 'background'}` e restituisce `{url, alt}` oppure `null`.
+
+- Formati caricabili: JPEG, PNG, WebP e GIF; massimo 10 MB per file con la configurazione predefinita, 10.000 pixel per lato e 40 megapixel. Il server controlla il contenuto del file e assegna un nome UUID.
+- Fino a 10 file per selezione, caricati in sequenza; 36 immagini per pagina e massimo 30 richieste di upload al minuto. Le cartelle sono etichette organizzative.
+- La miniatura WebP viene generata durante il caricamento. Se la conversione fallisce, viene rimosso solo il nuovo upload fallito.
+- Upload e modifiche ai dettagli sono salvati subito nella libreria. L’inserimento nel documento diventa persistente con **Salva** ed è annullabile con una sola operazione Undo, inclusi URL e testo alternativo.
+- Gli sfondi rispettano il dispositivo selezionato nell’editor. Sono decorativi e non hanno testo alternativo.
+- Il documento conserva URL e testo alternativo, senza duplicare il file. Modificare i metadati della libreria non riscrive i blocchi già salvati.
+
+Questa versione non include eliminazione, ritaglio, sostituzione dei file o upload SVG.
 
 ## Template e sorgenti
 
@@ -267,4 +317,4 @@ Il formato resta versione 1 con campi aggiuntivi opzionali `meta`, `design`, `re
 
 Vedi [architettura e schema](docs/architecture.md) per esclusività, documenti orfani, frammenti, estensioni e formato JSON. Le colonne sono gestite dalla griglia: riducendole, gli elementi delle colonne rimosse vengono aggiunti in ordine all’ultima rimasta. Gli ID degli elementi si conservano. Le impostazioni delle colonne rimosse sono recuperabili con Annulla, non vengono fuse in modo ambiguo.
 
-Il package non offre pubblicazione editoriale, import YOOtheme, HTML libero, approvazioni editoriali, ripetitori complessi, collaborazione simultanea o gestione completa del tema/media. Il blocco Testo supporta testo semplice e formattazione strutturata (grassetto, corsivo, link ed elenchi); contenuti e valori dinamici vengono escapati. Il controllo `revision` rileva i conflitti; la tabella separata `pagebuilder_revisions` conserva le versioni salvate. Non esiste un flusso editoriale di approvazione o pubblicazione differita.
+Il package non offre pubblicazione editoriale, import YOOtheme, HTML libero, approvazioni editoriali, ripetitori complessi o collaborazione simultanea. Il media manager opzionale gestisce upload, selezione e metadati; non include ritaglio, sostituzione o eliminazione dei file. Il blocco Testo supporta testo semplice e formattazione strutturata (grassetto, corsivo, link ed elenchi); contenuti e valori dinamici vengono escapati. Il controllo `revision` rileva i conflitti; la tabella separata `pagebuilder_revisions` conserva le versioni salvate. Non esiste un flusso editoriale di approvazione o pubblicazione differita.

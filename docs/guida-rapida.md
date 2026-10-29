@@ -313,7 +313,7 @@ Per modificare un template esistente, usa la view `examples/template-editor.blad
 - Un template può includere solo aree `fragment` dichiarate dal suo `ContextProvider`.
 - Le aree `fragment` sono sempre documenti locali statici; non possono a loro volta usare un template.
 - Usa `ContentManager` per collegare, sostituire o scollegare un contenuto. Non assegnare manualmente `page_content_id`, perché il package verifica l'esclusività del documento.
-- Per immagini e URL, esponi solo risorse pubbliche e autorizzate dall'app. Il package non offre un archivio media.
+- Per immagini e URL, esponi solo risorse pubbliche e autorizzate dall'app. Il [media manager opzionale con Spatie](../README.md#media-manager-con-spatie) consente upload, selezione e modifica dei metadati anche per gli sfondi; richiede un archivio e un Gate configurati dall'app.
 - FileCabinet è opzionale. Se il modello usa già FileCabinet, puoi esporre un suo campo dichiarato con `FileCabinetSource::field()`; non usare la sorgente per allegati privati o metodi arbitrari.
 
 ## Quando qualcosa non funziona

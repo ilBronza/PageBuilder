@@ -7,10 +7,12 @@
     "php": "^8.2"
   },
   "require-dev": {
+    "spatie/laravel-medialibrary": "^11.12",
     "orchestra/testbench": "^9.0",
     "phpunit/phpunit": "^11.0"
   },
   "suggest": {
+    "spatie/laravel-medialibrary": "Optional v11 image library, uploads and thumbnails",
     "ilbronza/filecabinet": "Optional read-only adapter for declared dossier fields"
   },
   "autoload": {
